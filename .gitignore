@@ -1,0 +1,43 @@
+# ─── Dependencies ──────────────────────────────────────────
+node_modules/
+.pnpm-store/
+pnpm-debug.log*
+
+# ─── Build outputs ─────────────────────────────────────────
+dist/
+build/
+out/
+.next/
+storybook-static/
+*.tsbuildinfo
+.turbo/
+
+# ─── Environment files ─────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ─── Test & coverage ───────────────────────────────────────
+coverage/
+.nyc_output/
+
+# ─── Prisma ────────────────────────────────────────────────
+# Keep migrations and schema in git; ignore generated client if checked in separately
+packages/db/generated/
+
+# ─── Editors & OS ──────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.idea/
+.vscode/settings.json
+.vscode/launch.json
+
+# ─── Logs ──────────────────────────────────────────────────
+*.log
+logs/
+
+# ─── Misc ──────────────────────────────────────────────────
+tmp/
+.vercel/

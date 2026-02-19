@@ -1,0 +1,457 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ───────────────────────────────────────────────
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum Plan {
+  STARTER
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum UserRole {
+  ADMIN
+  ACCOUNTANT
+  EXPORT_MANAGER
+  IMPORT_MANAGER
+  SALES_MANAGER
+  PURCHASE_MANAGER
+  INVENTORY_MANAGER
+  DATA_ENTRY
+  VIEWER
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  EXPIRED
+}
+
+enum AccountType {
+  CURRENT
+  SAVINGS
+}
+
+enum PartyType {
+  CUSTOMER
+  VENDOR
+  BOTH
+}
+
+enum PortType {
+  SEA
+  AIR
+  ICD
+  LAND
+}
+
+// Exchange rate type — three distinct rates apply to different transactions
+// RBI: general accounting; CBIC: Shipping Bill FOB conversion (mandatory); BANK: actual wire/BRC
+enum RateType {
+  RBI    // RBI Reference Rate — daily, for accounting and P&L
+  CBIC   // CBIC Customs Rate — weekly (Thursdays), mandatory for SB FOB → INR conversion
+  BANK   // Bank TT Rate — real-time, for actual wire transfers and BRC realization
+  MANUAL // Manual override by user
+}
+
+// ─── Tenant ──────────────────────────────────────────────
+
+model Tenant {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  status      TenantStatus @default(TRIAL)
+  plan        Plan         @default(STARTER)
+  trialEndsAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  businessProfile BusinessProfile?
+  users           User[]
+  invitations     Invitation[]
+  bankAccounts    BankAccount[]
+  auditLogs       AuditLog[]
+  parties         Party[]
+  products        Product[]
+  termsTemplates  TermsTemplate[]
+  customUoms      Uom[]
+
+  @@map("tenants")
+}
+
+// ─── Business Profile ────────────────────────────────────
+
+model BusinessProfile {
+  id                   String  @id @default(cuid())
+  tenantId             String  @unique
+  companyName          String
+  registeredAddress    String?
+  communicationAddress String?
+
+  // Trade registrations
+  iecNumber            String?   // Importer Exporter Code (DGFT) — 10 digits, permanent since March 2021
+  iecLastConfirmedAt   DateTime? // Date of last annual IEC update confirmation on DGFT portal (April–June window)
+  gstin                String?   // GST Identification Number — 15 chars, format: SS+PAN+E+Z+C
+  pan                  String?   // Permanent Account Number — 10 chars
+
+  // AD Code — Authorized Dealer Code (14-digit, issued by exporter's bank)
+  // Mandatory for Shipping Bill filing on ICEGATE and BRC linkage
+  adCode               String?   // 14-digit Authorized Dealer Code
+  adBankName           String?   // Bank that issued the AD code
+
+  // Signatory details
+  logoUrl              String?
+  signatureUrl         String?
+  signatoryName        String?
+  signatoryDesignation String?
+
+  // Financial year: 4 = April (Indian FY), 1 = January (calendar year)
+  financialYearStartMonth Int  @default(4)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("business_profiles")
+}
+
+// ─── Bank Account ────────────────────────────────────────
+
+model BankAccount {
+  id              String      @id @default(cuid())
+  tenantId        String
+  bankName        String
+  branch          String?
+  accountNumber   String
+  ifscCode        String?
+  swiftCode       String?
+  accountType     AccountType @default(CURRENT)
+  currency        String      @default("INR")
+  isDefaultExport Boolean     @default(false)
+  isDefaultImport Boolean     @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("bank_accounts")
+}
+
+// ─── Exchange Rate ───────────────────────────────────────
+//
+// Three distinct exchange rates are used in Indian export-import:
+//   RBI  — daily reference rate, for accounting and P&L
+//   CBIC — weekly customs rate (notified Thursdays), MANDATORY for SB FOB → INR conversion
+//   BANK — actual bank TT rate for wire transfers and BRC realization
+//
+// Using the wrong rate causes assessable value mismatch during customs audit.
+// tenantId = null means platform-seeded rate; tenantId set = manual override by tenant.
+
+model ExchangeRate {
+  id           String   @id @default(cuid())
+  tenantId     String?  // null = platform rate; set = manual override by this tenant
+  currencyCode String   // ISO 4217 code, e.g. "USD", "EUR"
+  date         DateTime // Effective date of the rate
+  rateType     RateType
+  rate         Decimal  @db.Decimal(10, 4) // INR per 1 unit of foreign currency
+  source       String?  // "RBI API", "CBIC Notification No. XX/2025", "Manual"
+
+  createdAt DateTime @default(now())
+
+  @@unique([currencyCode, date, rateType, tenantId])
+  @@index([currencyCode, date])
+  @@index([tenantId, currencyCode])
+  @@map("exchange_rates")
+}
+
+// ─── User ────────────────────────────────────────────────
+
+model User {
+  id           String     @id @default(cuid())
+  tenantId     String
+  email        String     @unique
+  passwordHash String
+  displayName  String
+  phone        String?
+  avatarUrl    String?
+  role         UserRole   @default(VIEWER)
+  status       UserStatus @default(ACTIVE)
+  isVerified   Boolean    @default(false)
+  lastLoginAt  DateTime?
+  failedLoginAttempts Int @default(0)
+  lockedUntil  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sessions Session[]
+
+  @@map("users")
+}
+
+// ─── Invitation ──────────────────────────────────────────
+
+model Invitation {
+  id        String           @id @default(cuid())
+  tenantId  String
+  email     String
+  role      UserRole
+  token     String           @unique
+  expiresAt DateTime
+  status    InvitationStatus @default(PENDING)
+  invitedBy String
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("invitations")
+}
+
+// ─── Session ─────────────────────────────────────────────
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  device       String?
+  ip           String?
+  expiresAt    DateTime
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+// ─── Audit Log ───────────────────────────────────────────
+
+model AuditLog {
+  id       String  @id @default(cuid())
+  tenantId String
+  userId   String?
+  action   String
+  module   String
+  entity   String?
+  details  Json?
+  ip       String?
+
+  createdAt DateTime @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, module])
+  @@map("audit_logs")
+}
+
+// ─── OTP / Verification Tokens ───────────────────────────
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  type      String   // EMAIL_VERIFY, PASSWORD_RESET
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([email, type])
+  @@map("verification_tokens")
+}
+
+// ─── Master Data: Party (Buyer / Supplier) ───────────────
+
+model Party {
+  id                  String    @id @default(cuid())
+  tenantId            String
+  type                PartyType
+  name                String
+  address             String?
+  city                String?
+  state               String?
+  zip                 String?
+  country             String    // ISO 2-letter code
+  vatNumber           String?
+  iecNumber           String?
+  gstin               String?
+  bankName            String?
+  swiftCode           String?
+  accountNumber       String?
+  iban                String?
+  defaultIncoterm     String?
+  defaultPaymentTerms String?
+  creditLimit         Decimal?  @db.Decimal(15, 2)
+  preferredPortCode   String?
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts PartyContact[]
+
+  @@index([tenantId, name])
+  @@index([tenantId, type])
+  @@index([tenantId, country])
+  @@map("parties")
+}
+
+model PartyContact {
+  id          String   @id @default(cuid())
+  partyId     String
+  name        String
+  designation String?
+  email       String?
+  phone       String?
+  isPrimary   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  party Party @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@map("party_contacts")
+}
+
+// ─── Master Data: Product / Item Master ──────────────────
+
+model Product {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  sku                String
+  name               String
+  customsDescription String?
+  hsCode             String?  // 6 or 8 digit HS code
+  countryOfOrigin    String?  // ISO 2-letter
+  uomCode            String   @default("PCS")
+  netWeightPerUnit   Decimal? @db.Decimal(10, 4)
+  grossWeightPerUnit Decimal? @db.Decimal(10, 4)
+  dimensionL         Decimal? @db.Decimal(10, 2)
+  dimensionW         Decimal? @db.Decimal(10, 2)
+  dimensionH         Decimal? @db.Decimal(10, 2)
+  dimensionUnit      String?  @default("CM")
+  bcdRate            Decimal? @db.Decimal(6, 2)
+  igstRate           Decimal? @db.Decimal(6, 2)
+  gstHsnCode         String?
+  gstRate            Decimal? @db.Decimal(6, 2)
+  category           String?
+  imageUrl           String?
+  isActive           Boolean  @default(true)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, name])
+  @@index([tenantId, hsCode])
+  @@map("products")
+}
+
+// ─── Master Data: Port (System Pre-loaded) ───────────────
+
+model Port {
+  id       String   @id @default(cuid())
+  name     String
+  code     String   @unique  // UN/LOCODE, e.g. "INBOM", "USLAX"
+  country  String   // ISO 2-letter
+  portType PortType
+  isActive Boolean  @default(true)
+
+  @@index([country])
+  @@index([portType])
+  @@map("ports")
+}
+
+// ─── Master Data: Country (System Pre-loaded) ────────────
+
+model Country {
+  code         String  @id  // ISO 2-letter, e.g. "IN"
+  code3        String  @unique  // ISO 3-letter, e.g. "IND"
+  name         String
+  currencyCode String?
+  ftaWithIndia Boolean @default(false)
+
+  @@map("countries")
+}
+
+// ─── Master Data: Unit of Measurement ────────────────────
+
+model Uom {
+  code     String  @id  // PCS, KG, MT, etc.
+  name     String
+  isSystem Boolean @default(true)
+  tenantId String? // null = system-wide; set = tenant custom
+
+  tenant Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@map("uoms")
+}
+
+// ─── Master Data: HS Code (Indian Customs Tariff) ────────
+
+model HsCode {
+  code        String   @id  // 6 or 8 digit
+  description String
+  chapter     String   // first 2 digits (e.g. "61")
+  heading     String   // first 4 digits (e.g. "6101")
+  category    String?  // human-readable category (e.g. "Textiles")
+  bcdRate     Decimal? @db.Decimal(6, 2)
+  igstRate    Decimal? @db.Decimal(6, 2)
+
+  @@index([chapter])
+  @@index([heading])
+  @@map("hs_codes")
+}
+
+// ─── Master Data: Incoterms 2020 (System Pre-loaded) ─────
+
+model Incoterm {
+  code              String @id  // FOB, CIF, EXW, etc.
+  name              String
+  riskTransferPoint String
+  costDescription   String
+  applicableModes   String  // "ALL" or "SEA_ONLY"
+
+  @@map("incoterms")
+}
+
+// ─── Master Data: Terms & Conditions Templates ────────────
+
+model TermsTemplate {
+  id           String   @id @default(cuid())
+  tenantId     String
+  name         String
+  documentType String   // INVOICE, PROFORMA, PURCHASE_ORDER, etc.
+  content      String   // HTML/rich text content
+  isDefault    Boolean  @default(false)
+  version      Int      @default(1)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, documentType])
+  @@map("terms_templates")
+}

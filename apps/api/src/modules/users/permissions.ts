@@ -1,0 +1,87 @@
+export type AccessLevel = 'FULL' | 'CREATE_EDIT' | 'VIEW' | 'NONE';
+
+export interface PermissionMatrix {
+  [module: string]: {
+    [role: string]: AccessLevel;
+  };
+}
+
+export const PERMISSION_MATRIX: PermissionMatrix = {
+  dashboard: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'VIEW',
+    EXPORT_MANAGER: 'VIEW',
+    IMPORT_MANAGER: 'VIEW',
+    SALES_MANAGER: 'VIEW',
+    PURCHASE_MANAGER: 'VIEW',
+    INVENTORY_MANAGER: 'VIEW',
+    DATA_ENTRY: 'VIEW',
+    VIEWER: 'VIEW',
+  },
+  exports: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'VIEW',
+    EXPORT_MANAGER: 'FULL',
+    IMPORT_MANAGER: 'VIEW',
+    SALES_MANAGER: 'CREATE_EDIT',
+    PURCHASE_MANAGER: 'NONE',
+    INVENTORY_MANAGER: 'VIEW',
+    DATA_ENTRY: 'CREATE_EDIT',
+    VIEWER: 'VIEW',
+  },
+  imports: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'VIEW',
+    EXPORT_MANAGER: 'VIEW',
+    IMPORT_MANAGER: 'FULL',
+    SALES_MANAGER: 'NONE',
+    PURCHASE_MANAGER: 'CREATE_EDIT',
+    INVENTORY_MANAGER: 'VIEW',
+    DATA_ENTRY: 'CREATE_EDIT',
+    VIEWER: 'VIEW',
+  },
+  payments: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'FULL',
+    EXPORT_MANAGER: 'VIEW',
+    IMPORT_MANAGER: 'VIEW',
+    SALES_MANAGER: 'VIEW',
+    PURCHASE_MANAGER: 'VIEW',
+    INVENTORY_MANAGER: 'NONE',
+    DATA_ENTRY: 'NONE',
+    VIEWER: 'VIEW',
+  },
+  reports: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'FULL',
+    EXPORT_MANAGER: 'VIEW',
+    IMPORT_MANAGER: 'VIEW',
+    SALES_MANAGER: 'VIEW',
+    PURCHASE_MANAGER: 'VIEW',
+    INVENTORY_MANAGER: 'VIEW',
+    DATA_ENTRY: 'NONE',
+    VIEWER: 'VIEW',
+  },
+  settings: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'NONE',
+    EXPORT_MANAGER: 'NONE',
+    IMPORT_MANAGER: 'NONE',
+    SALES_MANAGER: 'NONE',
+    PURCHASE_MANAGER: 'NONE',
+    INVENTORY_MANAGER: 'NONE',
+    DATA_ENTRY: 'NONE',
+    VIEWER: 'NONE',
+  },
+  users: {
+    ADMIN: 'FULL',
+    ACCOUNTANT: 'NONE',
+    EXPORT_MANAGER: 'NONE',
+    IMPORT_MANAGER: 'NONE',
+    SALES_MANAGER: 'NONE',
+    PURCHASE_MANAGER: 'NONE',
+    INVENTORY_MANAGER: 'NONE',
+    DATA_ENTRY: 'NONE',
+    VIEWER: 'NONE',
+  },
+};
