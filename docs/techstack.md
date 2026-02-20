@@ -201,10 +201,34 @@ exim_docs/
 | AWS (ap-south-1 Mumbai) | Cloud provider — Indian region for low latency |
 | Docker + ECS Fargate | Serverless container orchestration |
 | CloudFront | CDN for static assets, PDF downloads |
-| S3 / Cloudflare R2 | File storage — documents, certificates, B/L copies |
+| Cloudflare R2 | File storage (production) — documents, certificates, B/L copies; S3-compatible, zero egress fees |
+| RustFS | File storage (local development) — S3-compatible drop-in; Apache 2.0 license; runs via Docker Compose |
 | AWS SES + React Email | Transactional email with styled templates |
 | MSG91 | Indian SMS gateway (OTPs, payment reminders) |
 | Gupshup / Twilio | WhatsApp Business API integration |
+
+### File Storage Architecture
+
+The same `@aws-sdk/client-s3` code runs in both environments — only env vars differ:
+
+| Environment | Provider | Endpoint | Notes |
+|---|---|---|---|
+| Local dev | RustFS (Docker) | `http://localhost:9000` | `forcePathStyle: true`; web console at `:9001` |
+| Production | Cloudflare R2 | `https://<account>.r2.cloudflarestorage.com` | No egress fees; S3-compatible |
+
+**Upload flow (presigned URL pattern):**
+```
+Browser → POST /api/uploads/presign → backend returns presigned PUT URL
+Browser → PUT {presignedUrl} → file goes directly to RustFS / R2
+Browser → PATCH /api/{resource}/:id → saves objectKey to documentUrl field
+Frontend → GET /api/uploads/signed-url?key={key} → 15-min signed GET URL for viewing
+```
+
+Object path structure: `/{tenantId}/{module}/{recordId}/{filename}`
+
+> MinIO was the original recommendation but entered maintenance mode in December 2025 and
+> stopped publishing Docker images. RustFS (Apache 2.0, Rust) is the actively maintained
+> S3-compatible replacement.
 
 ---
 
@@ -214,8 +238,10 @@ exim_docs/
 |---|---|
 | GitHub Actions | CI/CD pipelines |
 | Biome | Linter + formatter (replaces ESLint + Prettier) |
-| Vitest | Unit testing |
-| Playwright | End-to-end testing |
+| Jest + ts-jest | Backend unit testing (`apps/api`) — 270+ tests, 90% coverage |
+| Jest + RTL | Frontend unit testing (`apps/web`) — utility and hook tests |
+| Playwright | End-to-end testing (planned) |
+| RustFS (Docker) | S3-compatible local file storage (replaces defunct MinIO) |
 | Husky + lint-staged | Pre-commit hooks |
 | Sentry | Error tracking and monitoring |
 | Better Stack | Log management |
@@ -289,7 +315,7 @@ Structured configuration system (not drag-and-drop):
 
 ---
 
-**Document Version:** 1.0
+**Document Version:** 1.1
 **Last Updated:** February 2026
 
 ---

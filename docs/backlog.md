@@ -406,6 +406,75 @@ const debouncedSearch = useDebounce(searchValue, 350);
 
 ---
 
+### #16 — File Upload Infrastructure (RustFS local / Cloudflare R2 production)
+
+**Priority:** 🟢 Low — `documentUrl` fields are URL-string placeholders until this is implemented
+**Scope:** Backend (`apps/api/`) + Frontend (`apps/web/`) + `docker-compose.yml`
+**Prerequisite for:** Logo upload (#13), Import certificates (E5-S12), B/L document upload (E4-S10, E5-S8)
+
+**Context:**
+All document models (`ImportBillOfLading`, `ImportDocument`, `BillOfLading`, `InsuranceCertificate`, etc.) have a `documentUrl String?` field. Currently this accepts any URL string typed manually by the user. This backlog item adds real file upload with presigned URLs.
+
+MinIO was the original plan but entered maintenance mode in December 2025 and stopped publishing Docker images. **RustFS** (Apache 2.0, Rust-based, S3-compatible) is the replacement for local development. Production uses **Cloudflare R2**.
+
+**Backend:**
+1. Add `docker-compose.yml` with RustFS service:
+```yaml
+services:
+  rustfs:
+    image: rustfs/rustfs:latest
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    environment:
+      RUSTFS_ROOT_USER: rustfsadmin
+      RUSTFS_ROOT_PASSWORD: rustfsadmin
+    volumes:
+      - rustfs_data:/data
+volumes:
+  rustfs_data:
+```
+
+2. Install `@aws-sdk/client-s3` and `@aws-sdk/s3-request-presigner` in `apps/api`
+
+3. Create `apps/api/src/modules/upload/upload.module.ts` with `UploadService`:
+   - `getPresignedPutUrl(tenantId, module, recordId, filename, contentType)` → returns 5-min presigned PUT URL
+   - `getSignedGetUrl(objectKey)` → returns 15-min signed GET URL
+   - Object path: `/{tenantId}/{module}/{recordId}/{filename}`
+
+4. Endpoints:
+   ```
+   POST /api/uploads/presign   → { uploadUrl, objectKey }
+   GET  /api/uploads/signed-url?key={key} → { url }
+   ```
+
+5. Env vars:
+   ```
+   S3_ENDPOINT=http://localhost:9000        # local: RustFS, prod: R2 URL
+   S3_REGION=auto
+   S3_ACCESS_KEY=rustfsadmin
+   S3_SECRET_KEY=rustfsadmin
+   S3_BUCKET=exim-docs
+   S3_FORCE_PATH_STYLE=true                 # required for RustFS; false for R2
+   ```
+
+**Frontend:**
+1. Create `apps/web/src/lib/upload.ts` — `uploadFile(file, module, recordId)`:
+   - `POST /api/uploads/presign` → get presigned URL
+   - `PUT presignedUrl` → upload file directly from browser
+   - Returns `objectKey` to save to the record
+
+2. Add `Upload` (Ant Design) component to relevant drawers: Import B/L, Import Certificates, Export B/L, Insurance, Logo settings
+
+**Acceptance criteria:**
+- Files upload directly from browser to RustFS (local) or R2 (prod) — backend never buffers the binary
+- `documentUrl` field on relevant models stores the object key (not the signed URL)
+- Signed GET URL fetched on-demand for viewing/download (15-min expiry)
+- Max file size: 10 MB; accepted types: PDF, PNG, JPG, JPEG
+- Works identically in local dev (RustFS) and production (R2) — only env vars differ
+
+---
+
 ### #11 — Build Buyer PO frontend page
 **Files affected:** New file needed: `apps/web/app/(dashboard)/exports/buyer-pos/page.tsx`; `components/sidebar.tsx`
 **Problem:** The `BuyerPO` backend module (CRUD + finalize) is fully implemented but there is no frontend page or sidebar navigation entry for it.
