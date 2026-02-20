@@ -23,13 +23,20 @@ main
 ## Sprint Lifecycle
 
 ### Starting a new sprint
+
+> **Rule: always branch from `develop`, never from `main` or a previous sprint branch.**
+
 ```bash
-# Always branch sprint from develop (not main)
+# 1. Switch to develop and pull the latest merged work
 git checkout develop
 git pull origin develop
-git checkout -b sprint-04
-git push -u origin sprint-04
+
+# 2. Create and push the new sprint branch
+git checkout -b sprint-05        # replace XX with the sprint number
+git push -u origin sprint-05
 ```
+
+The sprint branch is now ready. All work for the sprint goes on this branch.
 
 ### During the sprint
 Work directly on the sprint branch for most tasks:
@@ -116,6 +123,8 @@ Before opening a PR, verify:
 
 | Branch | Status | Notes |
 |---|---|---|
-| `main` | ✅ Sprint 1 + 2 complete | Initial commit |
-| `develop` | ✅ In sync with main | Integration branch |
-| `sprint-03` | 🔄 In progress | Export documentation (15 tasks) |
+| `main` | ✅ Sprints 1 + 2 complete | Initial commit |
+| `develop` | ✅ Sprints 1–4 complete | Sprint 4 PR merged 2026-02-20 |
+| `sprint-03` | ✅ Merged into sprint-04 | Superseded — safe to delete |
+| `sprint-04` | ✅ Merged into develop | PDF generation, admin panel |
+| `sprint-05` | 🔄 In progress | Unit test infrastructure + coverage |

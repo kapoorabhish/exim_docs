@@ -13,7 +13,7 @@
 | Sprint 2 | Master Data (Parties, Products, Ports, Currencies) | E3-S1–S14 | [Sprint 2](sprints/sprint-02.md) |
 | Sprint 3 | Export Documents (PI, CI, PL, SB) + Reference Browser | E4-S1–S9 | [Sprint 3](sprints/sprint-03.md) |
 | Sprint 4 | Export Completion (B/L, Insurance, BRC, Register) + PDF Templates | E4-S10, E4-S11, E4-S13, E4-S14, E4-S16, E4-S18, E11-S1–S3 | [Sprint 4](sprints/sprint-04.md) |
-| Sprint 5 | Import Documents (PO, Supplier Invoice, BoE, Landed Cost) | E5-S1–S10 | Planned |
+| Sprint 5 | Unit Tests (debt) + Import Documents (PO, Supplier Invoice, BoE, Landed Cost) | Backlog #15, E5-S1–S7 | [Sprint 5](sprints/sprint-05.md) |
 | Sprint 6 | Payments & Banking | E7-S1–S12 | Planned |
 | Sprint 7 | GST & Compliance + LC Management | E8-S1–S10, E6-S1–S5 | Planned |
 | Sprint 8 | Reports, Analytics, Dashboards | E10-S1–S8 | Planned |
