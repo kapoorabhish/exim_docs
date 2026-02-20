@@ -130,9 +130,9 @@ export default function TemplatesPage() {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openDrawer(record)} aria-label="Edit" />
+          <Button size="small" intent="default" icon={<EditOutlined />} onClick={() => openDrawer(record)} aria-label="Edit" />
           {!record.isDefault && (
-            <Button size="small" icon={<StarOutlined />} onClick={() => onSetDefault(record.id)} aria-label="Set default" />
+            <Button size="small" intent="default" icon={<StarOutlined />} onClick={() => onSetDefault(record.id)} aria-label="Set default" />
           )}
           <Popconfirm title="Delete this template?" onConfirm={() => onDelete(record.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} aria-label="Delete" />
@@ -171,7 +171,7 @@ export default function TemplatesPage() {
         width={600}
         footer={
           <Space style={{ justifyContent: 'flex-end', display: 'flex' }}>
-            <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
+            <Button intent="default" onClick={() => setDrawerOpen(false)}>Cancel</Button>
             <Button intent="primary" loading={saving} onClick={() => form.submit()}>
               {editing ? 'Update' : 'Create'}
             </Button>

@@ -160,6 +160,7 @@ export default function UsersPage() {
         <Space>
           <Button
             size="small"
+            intent="default"
             onClick={() => onToggleStatus(record)}
           >
             {record.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
@@ -180,7 +181,7 @@ export default function UsersPage() {
         actions={
           <Space>
             <Link href="/settings/users/permissions">
-              <Button>View Permissions</Button>
+              <Button intent="default">View Permissions</Button>
             </Link>
             <Button intent="primary" icon={<PlusOutlined />} onClick={() => setInviteOpen(true)}>
               Invite User

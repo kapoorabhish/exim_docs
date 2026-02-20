@@ -16,6 +16,7 @@
 6. [Storybook](#6-storybook)
 7. [Development Workflow](#7-development-workflow)
 8. [Architecture Decisions](#8-architecture-decisions)
+9. [UI/UX Implementation Guidelines](#9-uiux-implementation-guidelines) ⭐ Read before writing any UI code
 
 ---
 
@@ -650,7 +651,242 @@ Export-import documents have rigid, standardized structures. A config-driven app
 
 ---
 
-**Document Version:** 1.0
+## 9. UI/UX Implementation Guidelines
+
+> **⭐ Mandatory process:** Before implementing any new page, feature, or UI component, invoke the `ux-ui-designer` skill to review the design approach. This prevents inconsistencies, wasted effort, and rework. The skill should be consulted during planning — not after the fact.
+>
+> Use the skill for: new page layouts, new form patterns, new table actions, new navigation items, any component that involves user decision-making.
+
+---
+
+### 9.1 Button Hierarchy — The Most Critical Rule
+
+The `@exim/ui` `Button` component defaults to `intent="primary"` (filled indigo) when no `intent` is specified. **This means every `<Button>` without an explicit intent renders as a primary CTA.** Always declare intent explicitly.
+
+#### One Primary Action Per Section
+
+Every view section (page header, drawer footer, table row) may have **at most one** visually primary action. All others must be `intent="default"`.
+
+```tsx
+// ✅ CORRECT — clear visual hierarchy
+<Space>
+  <Button intent="default" icon={<DownloadOutlined />}>Export CSV</Button>
+  <Button intent="default" icon={<UploadOutlined />}>Import</Button>
+  <Button intent="primary" icon={<PlusOutlined />}>New Invoice</Button>  {/* ONE primary */}
+</Space>
+
+// ❌ WRONG — three indigo-filled buttons competing
+<Space>
+  <Button icon={<DownloadOutlined />}>Export CSV</Button>   {/* defaults to primary */}
+  <Button icon={<UploadOutlined />}>Import</Button>         {/* defaults to primary */}
+  <Button intent="primary" icon={<PlusOutlined />}>New Invoice</Button>
+</Space>
+```
+
+#### Button Intent Decision Table
+
+| Situation | Intent | Visual |
+|---|---|---|
+| Main page CTA ("New …") | `primary` or module intent (see below) | Filled indigo |
+| Export module CTA | `export` | Filled emerald |
+| Import module CTA | `import` | Filled orange |
+| Finance module CTA | `finance` | Filled violet |
+| Secondary / utility ("Cancel", "Back", "Close") | `default` | Outlined |
+| Drawer footer Cancel | `default` | Outlined |
+| Row-level Edit, View, History, Update Status | `default` | Outlined |
+| Table footer "Add Line", "Add Package" | `default` | Outlined |
+| Destructive action (Delete, Remove) | `danger` | Filled red |
+| Irreversible but positive (Finalize, Archive) | `primary` wrapped in `Popconfirm` | Filled indigo + confirmation |
+
+#### Module Accent CTAs
+
+When users are already in a module context, use the module's accent color for primary create actions:
+
+```tsx
+// In an Exports page:
+<Button intent="export" icon={<PlusOutlined />}>New Packing List</Button>
+
+// In an Imports page:
+<Button intent="import" icon={<PlusOutlined />}>New Purchase Order</Button>
+
+// At the dashboard level (cross-module), use primary:
+<Button intent="primary" icon={<PlusOutlined />}>New Document</Button>
+```
+
+---
+
+### 9.2 Status Display — Always Use `StatusBadge`
+
+Never use raw `<Tag color="...">` for document statuses. Use `<StatusBadge>` from `@exim/ui`, which reads from the central `DocumentStatusConfig` in `@exim/shared`.
+
+```tsx
+// ✅ CORRECT
+import { StatusBadge } from '@exim/ui';
+<StatusBadge status="filed" />
+<StatusBadge status="assessed" size="small" />
+
+// ❌ WRONG — hardcoded colors, not using design system
+const STATUS_COLOR = { FILED: 'processing', ASSESSED: 'cyan' };
+<Tag color={STATUS_COLOR[record.status]}>{record.status}</Tag>
+```
+
+If a new status type is required, add it to `DocumentStatusConfig` in `packages/shared/src/constants/documentStatuses.ts` first, then use `StatusBadge`.
+
+---
+
+### 9.3 Empty States — Always Use `EmptyState`
+
+When a data table has no records, use the `EmptyState` component from `@exim/ui` via the antd Table's `locale.emptyText` prop.
+
+```tsx
+import { EmptyState, Button } from '@exim/ui';
+import { PlusOutlined } from '@ant-design/icons';
+
+<Table
+  dataSource={records}
+  locale={{
+    emptyText: statusFilter
+      // Filter-active empty state: no CTA, explain why
+      ? <EmptyState message="No results match your filters" />
+      // First-run empty state: give clear next action
+      : (
+        <EmptyState
+          message="No packing lists yet"
+          description="Create your first packing list to get started."
+          action={
+            <Button intent="export" icon={<PlusOutlined />} onClick={() => openDrawer()}>
+              Create First
+            </Button>
+          }
+        />
+      ),
+  }}
+/>
+```
+
+Rules:
+- **Filter-active empty**: "No results match your filters" — no create CTA (the user applied a filter, not a setup step)
+- **First-run empty**: Descriptive copy + create CTA in the module's accent color
+- Never leave the Ant Design default empty graphic without a meaningful message
+
+---
+
+### 9.4 Color Tokens — Never Hardcode Colors
+
+Import `colors` from `@exim/ui` and use the token. Never use hex literals, `rgba()` strings, or named CSS colors inline.
+
+```tsx
+// ✅ CORRECT
+import { colors } from '@exim/ui';
+<span style={{ color: colors.neutral[500] }}>Secondary text</span>
+<div style={{ background: colors.neutral[100] }}>Page background</div>
+<Text style={{ color: colors.primary[600] }}>Brand link</Text>
+
+// ❌ WRONG — hardcoded magic strings
+<span style={{ color: '#888' }}>Secondary text</span>
+<div style={{ background: '#f5f5f5' }}>Page background</div>
+<Text style={{ color: '#4F46E5' }}>Brand link</Text>
+```
+
+#### Common Token Reference
+
+| Purpose | Token |
+|---|---|
+| Primary brand / links | `colors.primary[600]` |
+| Page / content background | `colors.neutral[100]` |
+| Card / surface | `colors.white` |
+| Primary text | `colors.neutral[900]` |
+| Secondary text | `colors.neutral[500]` |
+| Placeholder / disabled | `colors.neutral[400]` |
+| Faint / muted | `colors.neutral[300]` |
+| Borders | `colors.neutral[200]` |
+| Dark sidebar | `colors.primary[950]` |
+| Success indicators | `colors.success[600]` |
+| Warning indicators | `colors.warning[500]` |
+| Error / danger | `colors.danger[600]` |
+
+---
+
+### 9.5 Confirmations — Required for Irreversible Actions
+
+Any action that **cannot be undone** must be wrapped in a `Popconfirm` before calling the API. This includes:
+
+- **Finalize** — document transitions from editable to read-only
+- **Convert** — proforma → commercial invoice
+- **Delete** — permanent removal
+- **Status transitions** that skip states or lock records
+- **Suspend / Expire** — tenant status changes (admin)
+
+```tsx
+// ✅ CORRECT
+<Popconfirm
+  title="Finalize this packing list?"
+  description="This cannot be undone. The packing list will become read-only."
+  onConfirm={() => doFinalize(record.id)}
+  okText="Finalize"
+>
+  <Button intent="primary" icon={<CheckOutlined />} aria-label="Finalize" />
+</Popconfirm>
+
+// ❌ WRONG — one-click irreversible action
+<Button icon={<CheckOutlined />} onClick={() => doFinalize(record.id)} />
+```
+
+Actions that are easily reversible (e.g., filter changes, form edits, pagination) do **not** need confirmation.
+
+---
+
+### 9.6 Accessibility — `aria-label` on All Icon-Only Buttons
+
+Every `<Button>` that contains only an icon (no visible text) must have an `aria-label`. This is required for WCAG 2.1 AA compliance and screen reader support.
+
+```tsx
+// ✅ CORRECT
+<Button size="small" icon={<EditOutlined />} aria-label="Edit" />
+<Button size="small" icon={<DeleteOutlined />} danger aria-label="Delete" />
+<Button size="small" icon={<CheckOutlined />} aria-label="Finalize" />
+
+// ❌ WRONG — no accessible name
+<Button size="small" icon={<EditOutlined />} />
+```
+
+Buttons with visible text labels do not need `aria-label`.
+
+---
+
+### 9.7 Drawer Width Standards
+
+Use these three widths consistently. Do not use arbitrary values (860, 900, etc.):
+
+| Tier | Width | Use for |
+|---|---|---|
+| Standard | `640px` | Simple forms ≤ 10 fields, no inline tables (party detail, user invite, tenant detail) |
+| Wide | `960px` | Complex forms with inline editable tables (invoices, packing lists, shipping bills) |
+| Narrow | `480px` | Simple confirmation / info drawers (rarely needed; prefer Modal for confirmations) |
+
+---
+
+### 9.8 Page Structure Checklist
+
+Before submitting a new page, verify:
+
+- [ ] `PageHeader` used with `breadcrumbs` and `actions`
+- [ ] Page-level CTA uses the correct module intent (`export`, `import`, `finance`, or `primary`)
+- [ ] All secondary/utility buttons have `intent="default"`
+- [ ] All destructive buttons have `intent="danger"` or `danger` prop
+- [ ] Drawer Cancel/Close button has `intent="default"`
+- [ ] Table footer "Add …" buttons have `intent="default"`
+- [ ] All icon-only buttons have `aria-label`
+- [ ] Irreversible actions are wrapped in `Popconfirm`
+- [ ] Empty table state uses `EmptyState` component
+- [ ] Document statuses use `<StatusBadge>` not raw `<Tag>`
+- [ ] No hardcoded hex/rgba color strings — use `colors.*` tokens
+- [ ] Drawer width is 640px or 960px (not an arbitrary value)
+- [ ] `tsc --noEmit` passes clean before committing
+
+---
+
+**Document Version:** 1.1
 **Last Updated:** February 2026
 
 ---

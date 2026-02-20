@@ -23,6 +23,7 @@ enum Plan {
 }
 
 enum UserRole {
+  SUPER_ADMIN
   ADMIN
   ACCOUNTANT
   EXPORT_MANAGER
@@ -84,15 +85,25 @@ model Tenant {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
 
-  businessProfile BusinessProfile?
-  users           User[]
-  invitations     Invitation[]
-  bankAccounts    BankAccount[]
-  auditLogs       AuditLog[]
-  parties         Party[]
-  products        Product[]
-  termsTemplates  TermsTemplate[]
-  customUoms      Uom[]
+  businessProfile      BusinessProfile?
+  users                User[]
+  invitations          Invitation[]
+  bankAccounts         BankAccount[]
+  auditLogs            AuditLog[]
+  parties              Party[]
+  products             Product[]
+  termsTemplates       TermsTemplate[]
+  customUoms           Uom[]
+  documentSequences    DocumentSequence[]
+  proformaInvoices     ProformaInvoice[]
+  commercialInvoices   CommercialInvoice[]
+  buyerPurchaseOrders  BuyerPurchaseOrder[]
+  packingLists         PackingList[]
+  shippingBills        ShippingBill[]
+  certificatesOfOrigin        CertificateOfOrigin[]
+  billsOfLading               BillOfLading[]
+  insuranceCertificates       InsuranceCertificate[]
+  bankRealizationCertificates BankRealizationCertificate[]
 
   @@map("tenants")
 }
@@ -310,8 +321,11 @@ model Party {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  tenant   Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contacts PartyContact[]
+  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts            PartyContact[]
+  piAsBuyer           ProformaInvoice[]    @relation("PiBuyer")
+  invoicesAsBuyer     CommercialInvoice[]  @relation("InvoiceBuyer")
+  buyerPurchaseOrders BuyerPurchaseOrder[] @relation("PosBuyer")
 
   @@index([tenantId, name])
   @@index([tenantId, type])
@@ -437,6 +451,54 @@ model Incoterm {
   @@map("incoterms")
 }
 
+// ─── Export Document Enums ────────────────────────────────
+
+enum PiStatus {
+  DRAFT
+  FINALIZED
+  CONVERTED
+  CANCELLED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  FINALIZED
+  LOCKED
+}
+
+enum PlStatus {
+  DRAFT
+  FINALIZED
+}
+
+enum PoStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum SbType {
+  FREE
+  DRAWBACK
+  RODTEP
+  EPCG
+}
+
+enum SbStatus {
+  DRAFT
+  FILED
+  UNDER_ASSESSMENT
+  ASSESSED
+  LEO
+  SHIPPED
+}
+
+enum CooStatus {
+  DRAFT
+  SUBMITTED
+  ISSUED
+}
+
 // ─── Master Data: Terms & Conditions Templates ────────────
 
 model TermsTemplate {
@@ -454,4 +516,444 @@ model TermsTemplate {
 
   @@index([tenantId, documentType])
   @@map("terms_templates")
+}
+
+// ─── Document Sequence ────────────────────────────────────
+
+model DocumentSequence {
+  id           String   @id @default(cuid())
+  tenantId     String
+  documentType String   // PI, INV, PL, SB, COO, BPO
+  fyLabel      String   // "2025-26"
+  lastSequence Int      @default(0)
+  updatedAt    DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, documentType, fyLabel])
+  @@map("document_sequences")
+}
+
+// ─── Proforma Invoice ─────────────────────────────────────
+
+model ProformaInvoice {
+  id              String    @id @default(cuid())
+  tenantId        String
+  piNumber        String    // PI/2025-26/001
+  version         Int       @default(1)
+  parentId        String?   // set on revised versions
+  status          PiStatus  @default(DRAFT)
+  date            DateTime
+  validUntil      DateTime?
+  buyerPartyId    String
+  currency        String    @default("USD")
+  incoterm        String?
+  portOfLoading   String?
+  portOfDischarge String?
+  deliveryTerms   String?
+  paymentTerms    String?
+  bankAccountId   String?
+  freight         Decimal?  @db.Decimal(15, 2)
+  insurance       Decimal?  @db.Decimal(15, 2)
+  totalAmount     Decimal   @db.Decimal(15, 2) @default(0)
+  termsContent    String?
+  specialInstructions String?
+  notes           String?
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant              Tenant               @relation(fields: [tenantId], references: [id])
+  buyer               Party                @relation("PiBuyer", fields: [buyerPartyId], references: [id])
+  lineItems           PiLineItem[]
+  invoices            CommercialInvoice[]
+  buyerPurchaseOrders BuyerPurchaseOrder[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, buyerPartyId])
+  @@map("proforma_invoices")
+}
+
+model PiLineItem {
+  id          String   @id @default(cuid())
+  piId        String
+  lineNumber  Int
+  productId   String?
+  description String
+  hsCode      String?
+  quantity    Decimal  @db.Decimal(12, 4)
+  uomCode     String
+  unitPrice   Decimal  @db.Decimal(15, 4)
+  amount      Decimal  @db.Decimal(15, 2)
+
+  pi ProformaInvoice @relation(fields: [piId], references: [id], onDelete: Cascade)
+
+  @@map("pi_line_items")
+}
+
+// ─── Commercial Invoice ───────────────────────────────────
+
+model CommercialInvoice {
+  id                  String        @id @default(cuid())
+  tenantId            String
+  invoiceNumber       String        // INV/2025-26/001
+  status              InvoiceStatus @default(DRAFT)
+  date                DateTime
+  piId                String?       // linked PI if converted
+  buyerPartyId        String
+  notifyParty         String?
+  currency            String        @default("USD")
+  exchangeRate        Decimal       @db.Decimal(12, 6)  // snapshot at creation
+  incoterm            String?
+  paymentTerms        String?
+  bankAccountId       String?
+  preCarriage         String?
+  placeOfReceipt      String?
+  vesselFlight        String?
+  portOfLoading       String?
+  portOfDischarge     String?
+  finalDestination    String?
+  countryOfOrigin     String?
+  countryOfDestination String?
+  shippingMarks       String?
+  exportDeclaration   String?       // LUT / BOND_IGST / PAID_IGST
+  freight             Decimal?      @db.Decimal(15, 2)
+  insurance           Decimal?      @db.Decimal(15, 2)
+  totalAmount         Decimal       @db.Decimal(15, 2) @default(0)
+  termsContent        String?
+  notes               String?
+  createdBy           String
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  buyer         Party                @relation("InvoiceBuyer", fields: [buyerPartyId], references: [id])
+  pi            ProformaInvoice?     @relation(fields: [piId], references: [id])
+  lineItems     InvoiceLineItem[]
+  packingLists  PackingList[]
+  shippingBills ShippingBill[]
+  coos                        CertificateOfOrigin[]
+  billsOfLading               BillOfLading[]
+  insuranceCertificates       InsuranceCertificate[]
+  bankRealizationCertificates BankRealizationCertificate[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, buyerPartyId])
+  @@map("commercial_invoices")
+}
+
+model InvoiceLineItem {
+  id          String   @id @default(cuid())
+  invoiceId   String
+  lineNumber  Int
+  productId   String?
+  description String
+  hsCode      String?
+  marksNumbers String?
+  quantity    Decimal  @db.Decimal(12, 4)
+  uomCode     String
+  unitPrice   Decimal  @db.Decimal(15, 4)
+  amount      Decimal  @db.Decimal(15, 2)
+  netWeight   Decimal? @db.Decimal(10, 3)
+  grossWeight Decimal? @db.Decimal(10, 3)
+
+  invoice CommercialInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("invoice_line_items")
+}
+
+// ─── Buyer Purchase Order ─────────────────────────────────
+
+model BuyerPurchaseOrder {
+  id              String    @id @default(cuid())
+  tenantId        String
+  poNumber        String    // buyer's own PO reference
+  status          PoStatus  @default(PENDING)
+  date            DateTime
+  expectedDelivery DateTime?
+  buyerPartyId    String
+  piId            String?
+  currency        String    @default("USD")
+  totalAmount     Decimal   @db.Decimal(15, 2) @default(0)
+  documentUrl     String?
+  notes           String?
+  createdBy       String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  tenant    Tenant           @relation(fields: [tenantId], references: [id])
+  buyer     Party            @relation("PosBuyer", fields: [buyerPartyId], references: [id])
+  pi        ProformaInvoice? @relation(fields: [piId], references: [id])
+  lineItems BuyerPoLineItem[]
+
+  @@index([tenantId, buyerPartyId])
+  @@map("buyer_purchase_orders")
+}
+
+model BuyerPoLineItem {
+  id          String   @id @default(cuid())
+  poId        String
+  productId   String?
+  description String
+  quantity    Decimal  @db.Decimal(12, 4)
+  uomCode     String
+  unitPrice   Decimal  @db.Decimal(15, 4)
+
+  po BuyerPurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+
+  @@map("buyer_po_line_items")
+}
+
+// ─── Packing List ─────────────────────────────────────────
+
+model PackingList {
+  id               String   @id @default(cuid())
+  tenantId         String
+  plNumber         String   // PL/2025-26/001
+  status           PlStatus @default(DRAFT)
+  date             DateTime
+  invoiceId        String
+  shippingMarks    String?
+  totalPackages    Int?
+  totalNetWeight   Decimal? @db.Decimal(10, 3)
+  totalGrossWeight Decimal? @db.Decimal(10, 3)
+  totalCbm         Decimal? @db.Decimal(10, 4)
+  notes            String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant   Tenant            @relation(fields: [tenantId], references: [id])
+  invoice  CommercialInvoice @relation(fields: [invoiceId], references: [id])
+  packages PackingItem[]
+
+  @@index([tenantId, invoiceId])
+  @@map("packing_lists")
+}
+
+model PackingItem {
+  id          String   @id @default(cuid())
+  plId        String
+  packageNo   String   // "1/10", "2/10"
+  contents    String?
+  quantity    Decimal  @db.Decimal(12, 4)
+  netWeight   Decimal  @db.Decimal(10, 3)
+  grossWeight Decimal  @db.Decimal(10, 3)
+  dimensionL  Decimal? @db.Decimal(8, 2)
+  dimensionW  Decimal? @db.Decimal(8, 2)
+  dimensionH  Decimal? @db.Decimal(8, 2)
+  cbm         Decimal? @db.Decimal(10, 4)
+
+  packingList PackingList @relation(fields: [plId], references: [id], onDelete: Cascade)
+
+  @@map("packing_items")
+}
+
+// ─── Shipping Bill ────────────────────────────────────────
+
+model ShippingBill {
+  id                   String   @id @default(cuid())
+  tenantId             String
+  sbNumber             String?
+  sbType               SbType   @default(FREE)
+  status               SbStatus @default(DRAFT)
+  date                 DateTime
+  invoiceId            String
+  portCode             String
+  modeOfShipment       String
+  countryOfDestination String
+  exchangeRate         Decimal  @db.Decimal(12, 6)
+  totalFobInr          Decimal  @db.Decimal(15, 2)
+  freightInr           Decimal? @db.Decimal(15, 2)
+  insuranceInr         Decimal? @db.Decimal(15, 2)
+  leoNumber            String?
+  leoDate              DateTime?
+  notes                String?
+  createdBy            String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  tenant        Tenant            @relation(fields: [tenantId], references: [id])
+  invoice       CommercialInvoice @relation(fields: [invoiceId], references: [id])
+  lineItems     SbLineItem[]
+  statusHistory               SbStatusHistory[]
+  billsOfLading               BillOfLading[]
+  bankRealizationCertificates BankRealizationCertificate[]
+
+  @@index([tenantId, status])
+  @@index([tenantId, sbType])
+  @@map("shipping_bills")
+}
+
+model SbLineItem {
+  id             String   @id @default(cuid())
+  sbId           String
+  lineNumber     Int
+  description    String
+  hsCode         String
+  quantity       Decimal  @db.Decimal(12, 4)
+  uomCode        String
+  unitPriceInr   Decimal  @db.Decimal(15, 4)
+  fobValueInr    Decimal  @db.Decimal(15, 2)
+  drawbackRate   Decimal? @db.Decimal(6, 2)
+  drawbackAmount Decimal? @db.Decimal(15, 2)
+
+  shippingBill ShippingBill @relation(fields: [sbId], references: [id], onDelete: Cascade)
+
+  @@map("sb_line_items")
+}
+
+model SbStatusHistory {
+  id        String   @id @default(cuid())
+  sbId      String
+  status    SbStatus
+  changedAt DateTime @default(now())
+  changedBy String
+  notes     String?
+
+  shippingBill ShippingBill @relation(fields: [sbId], references: [id], onDelete: Cascade)
+
+  @@map("sb_status_history")
+}
+
+// ─── Certificate of Origin ────────────────────────────────
+
+model CertificateOfOrigin {
+  id               String    @id @default(cuid())
+  tenantId         String
+  cooNumber        String    // COO/2025-26/001
+  issueDate        DateTime
+  invoiceId        String
+  cooType          String    @default("NON_PREFERENTIAL")
+  issuingAuthority String?
+  status           CooStatus @default(DRAFT)
+  documentUrl      String?
+  notes            String?
+  createdBy        String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id])
+  invoice CommercialInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId, status])
+  @@map("certificates_of_origin")
+}
+
+// ─── Bill of Lading / Airway Bill ─────────────────────────────────────────────
+
+enum BlType {
+  ORIGINAL
+  TELEX_RELEASE
+  SEA_WAYBILL
+  HOUSE_BL
+  MASTER_BL
+}
+
+enum BlStatus {
+  ISSUED
+  SURRENDERED
+  TELEX_RELEASED
+}
+
+model BillOfLading {
+  id              String   @id @default(cuid())
+  tenantId        String
+  blNumber        String
+  blDate          DateTime
+  blType          BlType   @default(ORIGINAL)
+  status          BlStatus @default(ISSUED)
+  invoiceId       String
+  shippingBillId  String?
+  shipper         String?
+  consignee       String?
+  notifyParty     String?
+  vesselName      String?
+  voyageNumber    String?
+  portOfLoading   String?
+  portOfDischarge String?
+  containers      String?
+  packages        Int?
+  grossWeight     Decimal? @db.Decimal(10, 3)
+  cbm             Decimal? @db.Decimal(10, 4)
+  freightTerms    String?
+  originalsIssued Int?     @default(3)
+  documentUrl     String?
+  notes           String?
+  createdBy       String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  invoice      CommercialInvoice @relation(fields: [invoiceId], references: [id])
+  shippingBill ShippingBill?     @relation(fields: [shippingBillId], references: [id])
+
+  @@index([tenantId, invoiceId])
+  @@map("bills_of_lading")
+}
+
+// ─── Insurance Certificate ─────────────────────────────────────────────────────
+
+model InsuranceCertificate {
+  id           String   @id @default(cuid())
+  tenantId     String
+  policyNumber String
+  insurer      String
+  policyDate   DateTime
+  invoiceId    String
+  insuredParty String?
+  voyageFrom   String?
+  voyageTo     String?
+  sumInsured   Decimal  @db.Decimal(15, 2)
+  currency     String   @default("USD")
+  coverageType String?
+  premium      Decimal? @db.Decimal(10, 2)
+  validUntil   DateTime?
+  documentUrl  String?
+  notes        String?
+  createdBy    String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant  Tenant            @relation(fields: [tenantId], references: [id])
+  invoice CommercialInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId, invoiceId])
+  @@map("insurance_certificates")
+}
+
+// ─── Bank Realization Certificate ─────────────────────────────────────────────
+
+enum BrcStatus {
+  PENDING
+  RECEIVED
+}
+
+model BankRealizationCertificate {
+  id               String    @id @default(cuid())
+  tenantId         String
+  brcNumber        String?
+  bankName         String
+  realizationDate  DateTime
+  invoiceId        String
+  shippingBillId   String?
+  foreignCurrency  String
+  foreignAmount    Decimal   @db.Decimal(15, 2)
+  exchangeRate     Decimal   @db.Decimal(12, 6)
+  inrAmount        Decimal   @db.Decimal(15, 2)
+  status           BrcStatus @default(PENDING)
+  discrepancyNotes String?
+  documentUrl      String?
+  notes            String?
+  createdBy        String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant       Tenant            @relation(fields: [tenantId], references: [id])
+  invoice      CommercialInvoice @relation(fields: [invoiceId], references: [id])
+  shippingBill ShippingBill?     @relation(fields: [shippingBillId], references: [id])
+
+  @@index([tenantId, invoiceId])
+  @@index([tenantId, status])
+  @@map("bank_realization_certificates")
 }

@@ -171,10 +171,10 @@ export default function PartiesPage() {
       key: 'actions',
       render: (_, record) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} onClick={() => openDrawer(record)} aria-label="Edit" />
+          <Button size="small" intent="default" icon={<EditOutlined />} onClick={() => openDrawer(record)} aria-label="Edit" />
           {record.isActive && (
             <Popconfirm title="Deactivate this party?" onConfirm={() => onDeactivate(record.id)}>
-              <Button size="small" icon={<StopOutlined />} aria-label="Deactivate" />
+              <Button size="small" intent="default" icon={<StopOutlined />} aria-label="Deactivate" />
             </Popconfirm>
           )}
           <Popconfirm title="Delete this party?" onConfirm={() => onDelete(record.id)}>
@@ -192,8 +192,8 @@ export default function PartiesPage() {
         breadcrumbs={[{ label: 'Master Data' }, { label: 'Parties' }]}
         actions={
           <Space>
-            <Button icon={<DownloadOutlined />} onClick={downloadTemplate}>CSV Template</Button>
-            <Button icon={<UploadOutlined />} onClick={() => { setImportModal(true); setImportResult(null); }}>
+            <Button intent="default" icon={<DownloadOutlined />} onClick={downloadTemplate}>CSV Template</Button>
+            <Button intent="default" icon={<UploadOutlined />} onClick={() => { setImportModal(true); setImportResult(null); }}>
               Import CSV
             </Button>
             <Button intent="primary" icon={<PlusOutlined />} onClick={() => openDrawer()}>
@@ -247,7 +247,7 @@ export default function PartiesPage() {
         width={560}
         footer={
           <Space style={{ justifyContent: 'flex-end', display: 'flex' }}>
-            <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
+            <Button intent="default" onClick={() => setDrawerOpen(false)}>Cancel</Button>
             <Button intent="primary" loading={saving} onClick={() => form.submit()}>
               {editing ? 'Update' : 'Create'}
             </Button>
@@ -338,7 +338,7 @@ export default function PartiesPage() {
         footer={null}
       >
         <Space direction="vertical" style={{ width: '100%' }}>
-          <Button icon={<DownloadOutlined />} onClick={downloadTemplate} block>
+          <Button intent="default" icon={<DownloadOutlined />} onClick={downloadTemplate} block>
             Download CSV Template first
           </Button>
           <Upload.Dragger
