@@ -9,13 +9,15 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:push": "prisma db push",
-    "db:seed": "tsx prisma/seed.ts",
+    "db:seed": "tsx --env-file .env prisma/seed.ts",
+    "db:seed-tenant": "tsx --env-file .env prisma/seed-tenant.ts",
     "db:studio": "prisma studio"
   },
   "dependencies": {
     "@prisma/client": "^6.5.0"
   },
   "devDependencies": {
+    "@types/node": "^20.0.0",
     "prisma": "^6.19.2",
     "tsx": "^4.19.0",
     "typescript": "^5.7.0"

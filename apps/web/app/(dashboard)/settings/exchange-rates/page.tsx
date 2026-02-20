@@ -125,7 +125,7 @@ export default function ExchangeRatesPage() {
       title: 'Actions',
       key: 'actions',
       render: (_, record) => (
-        <Button size="small" icon={<EditOutlined />} onClick={() => openOverride(record.currencyCode)}>
+        <Button size="small" intent="default" icon={<EditOutlined />} onClick={() => openOverride(record.currencyCode)}>
           Override
         </Button>
       ),

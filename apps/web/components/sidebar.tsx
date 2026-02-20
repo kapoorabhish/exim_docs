@@ -21,6 +21,9 @@ import {
   DatabaseOutlined,
   AppstoreOutlined,
   SwapOutlined,
+  ContainerOutlined,
+  GlobalOutlined,
+  UnorderedListOutlined,
 } from '@ant-design/icons';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '../lib/auth-store';
@@ -41,9 +44,11 @@ function getMenuItems(role: string): MenuItem[] {
       icon: <ExportOutlined />,
       label: 'Exports',
       children: [
+        { key: '/exports/proforma-invoices', icon: <FileDoneOutlined />, label: 'Proforma Invoices' },
         { key: '/exports/invoices', icon: <FileTextOutlined />, label: 'Invoices' },
-        { key: '/exports/proforma', icon: <FileDoneOutlined />, label: 'Proforma' },
+        { key: '/exports/packing-lists', icon: <ContainerOutlined />, label: 'Packing Lists' },
         { key: '/exports/shipping-bills', icon: <AuditOutlined />, label: 'Shipping Bills' },
+        { key: '/exports/register', icon: <UnorderedListOutlined />, label: 'Export Register' },
       ],
     },
     {
@@ -91,6 +96,7 @@ function getMenuItems(role: string): MenuItem[] {
         { key: '/settings/bank-accounts', icon: <BankOutlined />, label: 'Bank Accounts' },
         { key: '/settings/exchange-rates', icon: <SwapOutlined />, label: 'Exchange Rates' },
         { key: '/settings/templates', icon: <FileTextOutlined />, label: 'Templates' },
+        { key: '/settings/reference-data', icon: <GlobalOutlined />, label: 'Reference Data' },
       ],
     });
   }

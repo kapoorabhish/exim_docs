@@ -88,7 +88,7 @@ export default function BankAccountsPage() {
       key: 'actions',
       render: (_: unknown, record: BankAccount) => (
         <Space>
-          <Button size="small" icon={<EditOutlined />} aria-label="Edit bank account" onClick={() => openModal(record)} />
+          <Button size="small" intent="default" icon={<EditOutlined />} aria-label="Edit bank account" onClick={() => openModal(record)} />
           <Popconfirm title="Delete this account?" onConfirm={() => onDelete(record.id)}>
             <Button size="small" danger icon={<DeleteOutlined />} aria-label="Delete bank account" />
           </Popconfirm>

@@ -27,7 +27,7 @@ export default function LoginPage() {
       const result = data.data || data;
       setAuth(result.user, result.tenant, result.accessToken, result.refreshToken);
       message.success('Welcome back!');
-      router.push('/dashboard');
+      router.push(result.user?.role === 'SUPER_ADMIN' ? '/admin' : '/dashboard');
     } catch (err: any) {
       const msg = err.response?.data?.message || 'Login failed';
       message.error(msg);
