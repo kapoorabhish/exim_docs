@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  App, Card, Table, Drawer, Form, Input, Select, Space,
+  App, Card, Table, Drawer, Form, Input, Select, Space, Segmented,
   DatePicker, InputNumber, Popconfirm, Dropdown,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -30,7 +30,8 @@ const STATUS_OPTIONS = [
   { value: 'CLOSED', label: 'Closed' },
 ];
 
-const UOM_OPTIONS = ['PCS', 'KG', 'MT', 'LTR', 'M', 'M2', 'M3', 'SET', 'PAIR'].map((u) => ({ value: u, label: u }));
+const UOM_OPTIONS_GOODS = ['PCS', 'KG', 'MT', 'LTR', 'M', 'M2', 'M3', 'SET', 'PAIR'].map((u) => ({ value: u, label: u }));
+const UOM_OPTIONS_SERVICE = ['HRS', 'DAYS', 'MONTHS', 'UNITS', 'LUMPSUM'].map((u) => ({ value: u, label: u }));
 const CURRENCIES = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'AED', 'INR'].map((c) => ({ value: c, label: c }));
 
 const DEFAULT_LINE: PoLineItem = { description: '', hsCode: '', quantity: 1, uomCode: 'PCS', unitPrice: 0, totalPrice: 0 };
@@ -47,6 +48,7 @@ export default function PurchaseOrdersPage() {
   const [saving, setSaving] = useState(false);
   const [lineItems, setLineItems] = useState<PoLineItem[]>([{ ...DEFAULT_LINE }]);
   const [parties, setParties] = useState<{ id: string; name: string }[]>([]);
+  const [poType, setPoType] = useState<'GOODS' | 'SERVICE'>('GOODS');
   const [form] = Form.useForm();
 
   const fetchParties = useCallback(async () => {
@@ -75,6 +77,7 @@ export default function PurchaseOrdersPage() {
     setEditing(po || null);
     form.resetFields();
     setLineItems([{ ...DEFAULT_LINE }]);
+    setPoType('GOODS');
     if (po) {
       api.get(`/supplier-pos/${po.id}`).then(({ data }) => {
         const rec = data.data || data;
@@ -82,6 +85,7 @@ export default function PurchaseOrdersPage() {
           ...rec,
           expectedDeliveryDate: rec.expectedDeliveryDate ? dayjs(rec.expectedDeliveryDate) : null,
         });
+        if (rec.poType) setPoType(rec.poType as 'GOODS' | 'SERVICE');
         if (rec.lineItems?.length) setLineItems(rec.lineItems);
       });
     }
@@ -252,6 +256,13 @@ export default function PurchaseOrdersPage() {
         }
       >
         <Form form={form} layout="vertical" onFinish={onSave}>
+          <Form.Item label="PO Type" name="poType" initialValue="GOODS">
+            <Segmented
+              options={[{ label: 'Goods / Products', value: 'GOODS' }, { label: 'Services', value: 'SERVICE' }]}
+              onChange={(v) => setPoType(v as 'GOODS' | 'SERVICE')}
+            />
+          </Form.Item>
+
           <Form.Item label="Supplier" name="supplierPartyId" rules={[{ required: true, message: 'Select a supplier' }]}>
             <Select
               showSearch
@@ -287,17 +298,17 @@ export default function PurchaseOrdersPage() {
                 title: 'Description *', key: 'desc', width: 160,
                 render: (_, r, i) => <Input value={r.description} placeholder="Item description" onChange={(e) => updateLine(i, 'description', e.target.value)} />,
               },
-              {
+              ...(poType === 'GOODS' ? [{
                 title: 'HS Code', key: 'hs', width: 90,
-                render: (_, r, i) => <Input value={r.hsCode} placeholder="6–8 digit" onChange={(e) => updateLine(i, 'hsCode', e.target.value)} />,
-              },
+                render: (_: any, r: PoLineItem, i: number) => <Input value={r.hsCode} placeholder="6–8 digit" onChange={(e) => updateLine(i, 'hsCode', e.target.value)} />,
+              }] : []),
               {
                 title: 'Qty *', key: 'qty', width: 70,
-                render: (_, r, i) => <InputNumber min={0} precision={3} value={r.quantity} onChange={(v) => updateLine(i, 'quantity', v ?? 0)} style={{ width: '100%' }} />,
+                render: (_: any, r: PoLineItem, i: number) => <InputNumber min={0} precision={3} value={r.quantity} onChange={(v) => updateLine(i, 'quantity', v ?? 0)} style={{ width: '100%' }} />,
               },
               {
                 title: 'UOM', key: 'uom', width: 80,
-                render: (_, r, i) => <Select value={r.uomCode} options={UOM_OPTIONS} onChange={(v) => updateLine(i, 'uomCode', v)} style={{ width: '100%' }} />,
+                render: (_: any, r: PoLineItem, i: number) => <Select value={r.uomCode} options={poType === 'SERVICE' ? UOM_OPTIONS_SERVICE : UOM_OPTIONS_GOODS} onChange={(v) => updateLine(i, 'uomCode', v)} style={{ width: '100%' }} />,
               },
               {
                 title: 'Unit Price *', key: 'price', width: 100,

@@ -11,6 +11,8 @@ export class UpdateProfileDto {
   @IsOptional() @IsString() signatoryName?: string;
   @IsOptional() @IsString() signatoryDesignation?: string;
   @IsOptional() @IsInt() @Min(1) @Max(12) financialYearStartMonth?: number;
+  @IsOptional() @IsString() tan?: string;
+  @IsOptional() @IsString() cin?: string;
 }
 
 export class CreateBankAccountDto {

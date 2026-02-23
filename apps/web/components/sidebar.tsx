@@ -68,8 +68,13 @@ function getMenuItems(role: string): MenuItem[] {
       icon: <DollarOutlined />,
       label: 'Payments',
       children: [
+        { key: '/payments/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+        { key: '/payments/export-payments', icon: <ExportOutlined />, label: 'Export Payments' },
+        { key: '/payments/import-payments', icon: <ImportOutlined />, label: 'Import Payments' },
+        { key: '/payments/advances', icon: <SwapOutlined />, label: 'Advances' },
         { key: '/payments/receivables', icon: <BankOutlined />, label: 'Receivables' },
         { key: '/payments/payables', icon: <BankOutlined />, label: 'Payables' },
+        { key: '/payments/party-ledger', icon: <UnorderedListOutlined />, label: 'Party Ledger' },
       ],
     },
     {

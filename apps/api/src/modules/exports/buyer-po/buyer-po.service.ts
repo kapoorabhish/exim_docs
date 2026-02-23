@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../../common/prisma.service';
-import { DocNumberService } from '../../../common/services/doc-number.service';
 
 @Injectable()
 export class BuyerPoService {
-  constructor(private prisma: PrismaService, private docNumber: DocNumberService) {}
+  constructor(private prisma: PrismaService) {}
 
   async list(tenantId: string, query: any) {
-    const { status, buyerPartyId, page = 1, pageSize = 20 } = query;
+    const { status, buyerPartyId, poType, page = 1, pageSize = 20 } = query;
     const where: any = { tenantId };
     if (status) where.status = status;
     if (buyerPartyId) where.buyerPartyId = buyerPartyId;
+    if (poType) where.poType = poType;
 
     const [data, total] = await Promise.all([
       this.prisma.buyerPurchaseOrder.findMany({

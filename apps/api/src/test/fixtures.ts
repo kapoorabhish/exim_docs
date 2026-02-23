@@ -387,3 +387,87 @@ export function makeImportDocument(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+// ─── Payment fixtures ──────────────────────────────────────────────────────────
+
+export const EXPORT_PAYMENT_ID = 'export-payment-id';
+export const IMPORT_PAYMENT_ID = 'import-payment-id';
+export const ADVANCE_PAYMENT_ID = 'advance-payment-id';
+
+export function makeExportPayment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: EXPORT_PAYMENT_ID,
+    tenantId: TENANT_ID,
+    paymentNumber: 'EPAY/2025-26/001',
+    paymentDate: new Date(),
+    referenceNumber: 'UTR123456',
+    buyerPartyId: PARTY_ID,
+    currency: 'USD',
+    foreignAmount: 5000,
+    exchangeRate: 83.5,
+    inrAmount: 417500,
+    bankAccountId: null,
+    paymentMode: 'WIRE_TRANSFER',
+    bankCharges: 50,
+    status: 'PENDING_CLEARANCE',
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    buyer: makeParty(),
+    allocations: [],
+    ...overrides,
+  };
+}
+
+export function makeImportPayment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: IMPORT_PAYMENT_ID,
+    tenantId: TENANT_ID,
+    paymentNumber: 'IPAY/2025-26/001',
+    paymentDate: new Date(),
+    referenceNumber: 'REF789',
+    supplierPartyId: PARTY_ID,
+    currency: 'USD',
+    foreignAmount: 10000,
+    exchangeRate: 83.5,
+    inrAmount: 835000,
+    bankAccountId: null,
+    paymentMode: 'WIRE_TRANSFER',
+    bankCharges: 100,
+    tdsAmount: 0,
+    status: 'PENDING',
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    supplier: makeParty(),
+    allocations: [],
+    ...overrides,
+  };
+}
+
+export function makeAdvancePayment(overrides: Record<string, unknown> = {}) {
+  return {
+    id: ADVANCE_PAYMENT_ID,
+    tenantId: TENANT_ID,
+    advanceNumber: 'ADV/2025-26/001',
+    advanceDate: new Date(),
+    type: 'RECEIVED',
+    partyId: PARTY_ID,
+    currency: 'USD',
+    foreignAmount: 2000,
+    exchangeRate: 83.5,
+    inrAmount: 167000,
+    adjustedAmount: 0,
+    status: 'OPEN',
+    purpose: 'Advance against PI-001',
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    party: makeParty(),
+    adjustments: [],
+    ...overrides,
+  };
+}

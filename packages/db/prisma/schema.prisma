@@ -110,6 +110,9 @@ model Tenant {
   landedCosts                 LandedCost[]
   importBillsOfLading         ImportBillOfLading[]
   importDocuments             ImportDocument[]
+  exportPayments              ExportPayment[]
+  importPayments              ImportPayment[]
+  advancePayments             AdvancePayment[]
 
   @@map("tenants")
 }
@@ -128,6 +131,10 @@ model BusinessProfile {
   iecLastConfirmedAt   DateTime? // Date of last annual IEC update confirmation on DGFT portal (April–June window)
   gstin                String?   // GST Identification Number — 15 chars, format: SS+PAN+E+Z+C
   pan                  String?   // Permanent Account Number — 10 chars
+
+  // Additional tax identifiers
+  tan                  String?   // Tax Deduction Account Number — 10 chars (e.g. MUMA12345A), for TDS
+  cin                  String?   // Corporate Identity Number — 21 chars (e.g. L12345MH2000PLC123456)
 
   // AD Code — Authorized Dealer Code (14-digit, issued by exporter's bank)
   // Mandatory for Shipping Bill filing on ICEGATE and BRC linkage
@@ -332,8 +339,11 @@ model Party {
   piAsBuyer              ProformaInvoice[]       @relation("PiBuyer")
   invoicesAsBuyer        CommercialInvoice[]     @relation("InvoiceBuyer")
   buyerPurchaseOrders    BuyerPurchaseOrder[]    @relation("PosBuyer")
-  supplierPurchaseOrders SupplierPurchaseOrder[] @relation("SupplierPoSupplier")
-  supplierInvoices       SupplierInvoice[]       @relation("SupplierInvoiceSupplier")
+  supplierPurchaseOrders  SupplierPurchaseOrder[] @relation("SupplierPoSupplier")
+  supplierInvoices        SupplierInvoice[]       @relation("SupplierInvoiceSupplier")
+  exportPaymentsReceived  ExportPayment[]         @relation("ExportPaymentBuyer")
+  importPaymentsMade      ImportPayment[]         @relation("ImportPaymentSupplier")
+  advancePayments         AdvancePayment[]        @relation("AdvancePaymentParty")
 
   @@index([tenantId, name])
   @@index([tenantId, type])
@@ -644,6 +654,7 @@ model CommercialInvoice {
   billsOfLading               BillOfLading[]
   insuranceCertificates       InsuranceCertificate[]
   bankRealizationCertificates BankRealizationCertificate[]
+  paymentAllocations          PaymentInvoiceAllocation[]
 
   @@index([tenantId, status])
   @@index([tenantId, buyerPartyId])
@@ -676,6 +687,7 @@ model BuyerPurchaseOrder {
   id              String    @id @default(cuid())
   tenantId        String
   poNumber        String    // buyer's own PO reference
+  poType          PoType    @default(GOODS)
   status          PoStatus  @default(PENDING)
   date            DateTime
   expectedDelivery DateTime?
@@ -966,6 +978,45 @@ model BankRealizationCertificate {
   @@map("bank_realization_certificates")
 }
 
+// ─── Payment & PO Type Enums ─────────────────────────────
+
+enum PoType {
+  GOODS
+  SERVICE
+}
+
+enum PaymentMode {
+  WIRE_TRANSFER
+  LC
+  TT
+  CHEQUE
+  CASH
+  OTHER
+}
+
+enum ExportPaymentStatus {
+  PENDING_CLEARANCE
+  CLEARED
+  BOUNCED
+}
+
+enum ImportPaymentStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum AdvanceType {
+  RECEIVED
+  MADE
+}
+
+enum AdvanceStatus {
+  OPEN
+  PARTIALLY_ADJUSTED
+  FULLY_ADJUSTED
+}
+
 // ─── Import Document Enums ────────────────────────────────
 
 enum SupplierPoStatus {
@@ -1015,6 +1066,7 @@ model SupplierPurchaseOrder {
   tenantId             String
   poNumber             String           // SPO/2025-26/001
   supplierPartyId      String
+  poType               PoType           @default(GOODS)
   currency             String           @default("USD")
   expectedDeliveryDate DateTime?
   status               SupplierPoStatus @default(DRAFT)
@@ -1075,9 +1127,10 @@ model SupplierInvoice {
   tenant       Tenant                    @relation(fields: [tenantId], references: [id])
   supplier     Party                     @relation("SupplierInvoiceSupplier", fields: [supplierPartyId], references: [id])
   po           SupplierPurchaseOrder?    @relation(fields: [poId], references: [id])
-  lineItems    SupplierInvoiceLineItem[]
-  billsOfEntry BillOfEntry[]
-  importBls    ImportBillOfLading[]
+  lineItems          SupplierInvoiceLineItem[]
+  billsOfEntry       BillOfEntry[]
+  importBls          ImportBillOfLading[]
+  paymentAllocations SupplierPaymentAllocation[]
 
   @@unique([tenantId, invoiceNumber])
   @@index([tenantId, status])
@@ -1212,3 +1265,145 @@ model ImportDocument {
 
   @@map("import_documents")
 }
+
+// ─── Export Payment (Receivable) ─────────────────────────
+
+model ExportPayment {
+  id              String              @id @default(cuid())
+  tenantId        String
+  paymentNumber   String              // EPAY/2025-26/001
+  paymentDate     DateTime
+  referenceNumber String?             // Bank UTR / wire reference
+  buyerPartyId    String
+  currency        String
+  foreignAmount   Decimal             @db.Decimal(18, 4)
+  exchangeRate    Decimal             @db.Decimal(18, 6)
+  inrAmount       Decimal             @db.Decimal(18, 2)
+  bankAccountId   String?
+  paymentMode     PaymentMode
+  bankCharges     Decimal             @db.Decimal(12, 2) @default(0)
+  status          ExportPaymentStatus @default(PENDING_CLEARANCE)
+  notes           String?
+  createdBy       String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  tenant      Tenant                     @relation(fields: [tenantId], references: [id])
+  buyer       Party                      @relation("ExportPaymentBuyer", fields: [buyerPartyId], references: [id])
+  allocations PaymentInvoiceAllocation[]
+  advanceAdjustments AdvancePaymentAdjustment[] @relation("AdvanceAdjExportPayment")
+
+  @@unique([tenantId, paymentNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, buyerPartyId])
+  @@map("export_payments")
+}
+
+model PaymentInvoiceAllocation {
+  id              String        @id @default(cuid())
+  paymentId       String
+  invoiceId       String
+  allocatedAmount Decimal       @db.Decimal(18, 4)
+
+  payment ExportPayment     @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice CommercialInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("payment_invoice_allocations")
+}
+
+// ─── Import Payment (Payable) ─────────────────────────────
+
+model ImportPayment {
+  id              String              @id @default(cuid())
+  tenantId        String
+  paymentNumber   String              // IPAY/2025-26/001
+  paymentDate     DateTime
+  referenceNumber String?
+  supplierPartyId String
+  currency        String
+  foreignAmount   Decimal             @db.Decimal(18, 4)
+  exchangeRate    Decimal             @db.Decimal(18, 6)
+  inrAmount       Decimal             @db.Decimal(18, 2)
+  bankAccountId   String?
+  paymentMode     PaymentMode
+  bankCharges     Decimal             @db.Decimal(12, 2) @default(0)
+  tdsAmount       Decimal             @db.Decimal(12, 2) @default(0)
+  status          ImportPaymentStatus @default(PENDING)
+  notes           String?
+  createdBy       String
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  tenant      Tenant                      @relation(fields: [tenantId], references: [id])
+  supplier    Party                       @relation("ImportPaymentSupplier", fields: [supplierPartyId], references: [id])
+  allocations SupplierPaymentAllocation[]
+  advanceAdjustments AdvancePaymentAdjustment[] @relation("AdvanceAdjImportPayment")
+
+  @@unique([tenantId, paymentNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, supplierPartyId])
+  @@map("import_payments")
+}
+
+model SupplierPaymentAllocation {
+  id              String   @id @default(cuid())
+  paymentId       String
+  invoiceId       String
+  allocatedAmount Decimal  @db.Decimal(18, 4)
+
+  payment ImportPayment   @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  invoice SupplierInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@map("supplier_payment_allocations")
+}
+
+// ─── Advance Payment ─────────────────────────────────────
+
+model AdvancePayment {
+  id             String        @id @default(cuid())
+  tenantId       String
+  advanceNumber  String        // ADV/2025-26/001
+  advanceDate    DateTime
+  type           AdvanceType
+  partyId        String
+  currency       String
+  foreignAmount  Decimal       @db.Decimal(18, 4)
+  exchangeRate   Decimal       @db.Decimal(18, 6)
+  inrAmount      Decimal       @db.Decimal(18, 2)
+  adjustedAmount Decimal       @db.Decimal(18, 2) @default(0)
+  status         AdvanceStatus @default(OPEN)
+  purpose        String?
+  notes          String?
+  createdBy      String
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  tenant      Tenant                     @relation(fields: [tenantId], references: [id])
+  party       Party                      @relation("AdvancePaymentParty", fields: [partyId], references: [id])
+  adjustments AdvancePaymentAdjustment[]
+
+  @@unique([tenantId, advanceNumber])
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@map("advance_payments")
+}
+
+model AdvancePaymentAdjustment {
+  id              String   @id @default(cuid())
+  advanceId       String
+  exportPaymentId String?
+  importPaymentId String?
+  adjustedAmount  Decimal  @db.Decimal(18, 4)
+  adjustmentDate  DateTime
+  notes           String?
+
+  advance       AdvancePayment  @relation(fields: [advanceId], references: [id], onDelete: Cascade)
+  exportPayment ExportPayment?  @relation("AdvanceAdjExportPayment", fields: [exportPaymentId], references: [id])
+  importPayment ImportPayment?  @relation("AdvanceAdjImportPayment", fields: [importPaymentId], references: [id])
+
+  @@map("advance_payment_adjustments")
+}
+
+// ─── CommercialInvoice payment allocation back-relation ──
+// (relation field added to CommercialInvoice inline in model above)
+

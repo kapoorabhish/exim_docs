@@ -14,6 +14,10 @@ const PAN_REGEX = /^[A-Z]{5}[0-9]{4}[A-Z]$/;
 const GSTIN_REGEX = /^[0-3][0-9][A-Z]{5}[0-9]{4}[A-Z][0-9A-Z]Z[0-9A-Z]$/;
 // AD Code: 14 digits
 const AD_CODE_REGEX = /^\d{14}$/;
+// TAN: 4 letters + 5 digits + 1 letter (e.g. MUMA12345A)
+const TAN_REGEX = /^[A-Z]{4}[0-9]{5}[A-Z]$/;
+// CIN: 21 chars (e.g. L12345MH2000PLC123456)
+const CIN_REGEX = /^[A-Z]{1}[0-9]{5}[A-Z]{2}[0-9]{4}[A-Z]{3}[0-9]{6}$/;
 
 const validateIEC = (_: unknown, value: string) => {
   if (!value) return Promise.resolve();
@@ -40,6 +44,18 @@ const validatePAN = (_: unknown, value: string) => {
 const validateADCode = (_: unknown, value: string) => {
   if (!value) return Promise.resolve();
   if (!AD_CODE_REGEX.test(value)) return Promise.reject('AD Code must be exactly 14 digits');
+  return Promise.resolve();
+};
+
+const validateTAN = (_: unknown, value: string) => {
+  if (!value) return Promise.resolve();
+  if (!TAN_REGEX.test(value.toUpperCase())) return Promise.reject('TAN format: MUMA12345A (4 letters, 5 digits, 1 letter)');
+  return Promise.resolve();
+};
+
+const validateCIN = (_: unknown, value: string) => {
+  if (!value) return Promise.resolve();
+  if (!CIN_REGEX.test(value.toUpperCase())) return Promise.reject('CIN format: L12345MH2000PLC123456 (21 characters)');
   return Promise.resolve();
 };
 
@@ -170,6 +186,31 @@ export default function BusinessProfilePage() {
                 extra={<Text type="secondary" style={{ fontSize: 12 }}>Bank that issued your AD Code</Text>}
               >
                 <Input placeholder="e.g. State Bank of India" />
+              </Form.Item>
+            </Col>
+          </Row>
+
+          <Row gutter={16}>
+            <Col span={8}>
+              <Form.Item
+                label="TAN"
+                name="tan"
+                rules={[{ validator: validateTAN }]}
+                normalize={(v: string) => v?.toUpperCase()}
+                extra={<Text type="secondary" style={{ fontSize: 12 }}>Tax Deduction Account Number — 10 chars, e.g. MUMA12345A</Text>}
+              >
+                <Input placeholder="MUMA12345A" maxLength={10} />
+              </Form.Item>
+            </Col>
+            <Col span={8}>
+              <Form.Item
+                label="CIN"
+                name="cin"
+                rules={[{ validator: validateCIN }]}
+                normalize={(v: string) => v?.toUpperCase()}
+                extra={<Text type="secondary" style={{ fontSize: 12 }}>Corporate Identity Number — 21 chars, e.g. L12345MH2000PLC123456</Text>}
+              >
+                <Input placeholder="L12345MH2000PLC123456" maxLength={21} />
               </Form.Item>
             </Col>
           </Row>
