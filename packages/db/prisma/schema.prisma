@@ -104,6 +104,12 @@ model Tenant {
   billsOfLading               BillOfLading[]
   insuranceCertificates       InsuranceCertificate[]
   bankRealizationCertificates BankRealizationCertificate[]
+  supplierPurchaseOrders      SupplierPurchaseOrder[]
+  supplierInvoices            SupplierInvoice[]
+  billsOfEntry                BillOfEntry[]
+  landedCosts                 LandedCost[]
+  importBillsOfLading         ImportBillOfLading[]
+  importDocuments             ImportDocument[]
 
   @@map("tenants")
 }
@@ -321,11 +327,13 @@ model Party {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  tenant              Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
-  contacts            PartyContact[]
-  piAsBuyer           ProformaInvoice[]    @relation("PiBuyer")
-  invoicesAsBuyer     CommercialInvoice[]  @relation("InvoiceBuyer")
-  buyerPurchaseOrders BuyerPurchaseOrder[] @relation("PosBuyer")
+  tenant                 Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts               PartyContact[]
+  piAsBuyer              ProformaInvoice[]       @relation("PiBuyer")
+  invoicesAsBuyer        CommercialInvoice[]     @relation("InvoiceBuyer")
+  buyerPurchaseOrders    BuyerPurchaseOrder[]    @relation("PosBuyer")
+  supplierPurchaseOrders SupplierPurchaseOrder[] @relation("SupplierPoSupplier")
+  supplierInvoices       SupplierInvoice[]       @relation("SupplierInvoiceSupplier")
 
   @@index([tenantId, name])
   @@index([tenantId, type])
@@ -956,4 +964,251 @@ model BankRealizationCertificate {
   @@index([tenantId, invoiceId])
   @@index([tenantId, status])
   @@map("bank_realization_certificates")
+}
+
+// ─── Import Document Enums ────────────────────────────────
+
+enum SupplierPoStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  PARTIALLY_FULFILLED
+  FULLY_FULFILLED
+  CLOSED
+}
+
+enum SupplierInvoiceStatus {
+  DRAFT
+  RECEIVED
+  CLEARED
+}
+
+enum BoeStatus {
+  DRAFT
+  FILED
+  EXAMINED
+  OUT_OF_CHARGE
+  DUTY_PAID
+}
+
+enum ImportBlStatus {
+  RECEIVED
+  DELIVERY_ORDER_ISSUED
+  CARGO_PICKED_UP
+}
+
+enum ImportDocumentType {
+  COO
+  QUALITY_CERT
+  WEIGHT_CERT
+  TEST_REPORT
+  DUTY_CHALLAN
+  EXAMINATION_REPORT
+  OTHER
+}
+
+// ─── Supplier Purchase Order ──────────────────────────────
+
+model SupplierPurchaseOrder {
+  id                   String           @id @default(cuid())
+  tenantId             String
+  poNumber             String           // SPO/2025-26/001
+  supplierPartyId      String
+  currency             String           @default("USD")
+  expectedDeliveryDate DateTime?
+  status               SupplierPoStatus @default(DRAFT)
+  totalAmount          Decimal          @db.Decimal(15, 2)
+  approvedBy           String?
+  approvedAt           DateTime?
+  notes                String?
+  createdBy            String
+  createdAt            DateTime         @default(now())
+  updatedAt            DateTime         @updatedAt
+
+  tenant           Tenant               @relation(fields: [tenantId], references: [id])
+  supplier         Party                @relation("SupplierPoSupplier", fields: [supplierPartyId], references: [id])
+  lineItems        SupplierPoLineItem[]
+  supplierInvoices SupplierInvoice[]
+
+  @@unique([tenantId, poNumber])
+  @@index([tenantId, status])
+  @@map("supplier_purchase_orders")
+}
+
+model SupplierPoLineItem {
+  id          String  @id @default(cuid())
+  poId        String
+  lineNumber  Int
+  description String
+  hsCode      String?
+  quantity    Decimal @db.Decimal(12, 3)
+  uomCode     String  @default("PCS")
+  unitPrice   Decimal @db.Decimal(12, 4)
+  totalPrice  Decimal @db.Decimal(15, 2)
+
+  po SupplierPurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+
+  @@map("supplier_po_line_items")
+}
+
+// ─── Supplier Invoice ─────────────────────────────────────
+
+model SupplierInvoice {
+  id               String                @id @default(cuid())
+  tenantId         String
+  invoiceNumber    String                // SINV/2025-26/001
+  supplierPartyId  String
+  poId             String?
+  currency         String                @default("USD")
+  exchangeRate     Decimal               @db.Decimal(12, 6)
+  exchangeRateDate DateTime?
+  invoiceDate      DateTime
+  dueDate          DateTime?
+  totalAmount      Decimal               @db.Decimal(15, 2)
+  status           SupplierInvoiceStatus @default(DRAFT)
+  notes            String?
+  createdBy        String
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  tenant       Tenant                    @relation(fields: [tenantId], references: [id])
+  supplier     Party                     @relation("SupplierInvoiceSupplier", fields: [supplierPartyId], references: [id])
+  po           SupplierPurchaseOrder?    @relation(fields: [poId], references: [id])
+  lineItems    SupplierInvoiceLineItem[]
+  billsOfEntry BillOfEntry[]
+  importBls    ImportBillOfLading[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@map("supplier_invoices")
+}
+
+model SupplierInvoiceLineItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  lineNumber  Int
+  description String
+  hsCode      String?
+  quantity    Decimal @db.Decimal(12, 3)
+  uomCode     String  @default("PCS")
+  unitPrice   Decimal @db.Decimal(12, 4)
+  totalPrice  Decimal @db.Decimal(15, 2)
+
+  invoice SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@map("supplier_invoice_line_items")
+}
+
+// ─── Bill of Entry ────────────────────────────────────────
+
+model BillOfEntry {
+  id                     String    @id @default(cuid())
+  tenantId               String
+  boeNumber              String?   // assigned after filing
+  invoiceId              String
+  portOfEntry            String?
+  assessedValue          Decimal   @db.Decimal(15, 2) // CIF value in INR
+  basicDuty              Decimal   @db.Decimal(12, 2)
+  socialWelfareSurcharge Decimal   @db.Decimal(12, 2)
+  igst                   Decimal   @db.Decimal(12, 2)
+  compensationCess       Decimal   @db.Decimal(12, 2) @default(0)
+  totalDuty              Decimal   @db.Decimal(12, 2)
+  status                 BoeStatus @default(DRAFT)
+  filingDate             DateTime?
+  examinationDate        DateTime?
+  outOfChargeDate        DateTime?
+  dutyPaidDate           DateTime?
+  notes                  String?
+  createdBy              String
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  tenant       Tenant           @relation(fields: [tenantId], references: [id])
+  invoice      SupplierInvoice  @relation(fields: [invoiceId], references: [id])
+  landedCosts  LandedCost[]
+  importDocs   ImportDocument[]
+
+  @@index([tenantId, status])
+  @@map("bills_of_entry")
+}
+
+// ─── Landed Cost ──────────────────────────────────────────
+
+model LandedCost {
+  id               String   @id @default(cuid())
+  tenantId         String
+  boeId            String
+  cifValue         Decimal  @db.Decimal(15, 2)
+  customsDuty      Decimal  @db.Decimal(12, 2)
+  clearingCharges  Decimal  @db.Decimal(12, 2) @default(0)
+  handlingCharges  Decimal  @db.Decimal(12, 2) @default(0)
+  transportCharges Decimal  @db.Decimal(12, 2) @default(0)
+  otherCharges     Decimal  @db.Decimal(12, 2) @default(0)
+  totalLandedCost  Decimal  @db.Decimal(15, 2)
+  totalQuantity    Decimal  @db.Decimal(12, 3)
+  costPerUnit      Decimal  @db.Decimal(12, 4)
+  notes            String?
+  createdBy        String
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  boe    BillOfEntry @relation(fields: [boeId], references: [id])
+
+  @@map("landed_costs")
+}
+
+// ─── Import Bill of Lading ────────────────────────────────
+
+model ImportBillOfLading {
+  id                  String         @id @default(cuid())
+  tenantId            String
+  invoiceId           String
+  blNumber            String
+  blDate              DateTime
+  shippingLine        String?
+  vesselName          String?
+  containerNumbers    String?        // comma-separated
+  portOfLoading       String?
+  portOfDischarge     String?
+  arrivalDate         DateTime?
+  freeDays            Int            @default(14)
+  dailyDemurrageRate  Decimal?       @db.Decimal(10, 2)
+  deliveryOrderNumber String?
+  deliveryOrderDate   DateTime?
+  status              ImportBlStatus @default(RECEIVED)
+  documentUrl         String?
+  notes               String?
+  createdBy           String
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  tenant  Tenant          @relation(fields: [tenantId], references: [id])
+  invoice SupplierInvoice @relation(fields: [invoiceId], references: [id])
+
+  @@index([tenantId, invoiceId])
+  @@map("import_bills_of_lading")
+}
+
+// ─── Import Document (certificates etc.) ─────────────────
+
+model ImportDocument {
+  id               String             @id @default(cuid())
+  tenantId         String
+  boeId            String
+  documentType     ImportDocumentType
+  documentNumber   String?
+  documentDate     DateTime?
+  issuingAuthority String?
+  documentUrl      String?
+  notes            String?
+  createdBy        String
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+
+  tenant Tenant      @relation(fields: [tenantId], references: [id])
+  boe    BillOfEntry @relation(fields: [boeId], references: [id])
+
+  @@map("import_documents")
 }

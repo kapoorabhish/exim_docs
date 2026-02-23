@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [develop, main]
+  push:
+    branches: [develop, main]
+
+jobs:
+  # ── API Tests & Coverage ─────────────────────────────────────────────────────
+  api-test:
+    name: API Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter db db:generate
+
+      - name: Run API tests with coverage
+        run: pnpm --filter api test:cov
+
+      - name: Upload API coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-coverage
+          path: apps/api/coverage/coverage-summary.json
+
+  # ── Web Tests & Coverage ─────────────────────────────────────────────────────
+  web-test:
+    name: Web Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run web tests with coverage
+        run: pnpm --filter web test:cov
+
+      - name: Upload web coverage summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-coverage
+          path: apps/web/coverage/coverage-summary.json
+
+  # ── Coverage PR Comment ──────────────────────────────────────────────────────
+  coverage-comment:
+    name: Post Coverage Report
+    runs-on: ubuntu-latest
+    needs: [api-test, web-test]
+    if: github.event_name == 'pull_request'
+    permissions:
+      pull-requests: write
+
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: api-coverage
+          path: coverage/api
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: web-coverage
+          path: coverage/web
+
+      - name: Post coverage comment
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require('fs');
+
+            function parseSummary(path, label) {
+              if (!fs.existsSync(path)) return `_${label}: no coverage data_\n`;
+              const summary = JSON.parse(fs.readFileSync(path, 'utf8')).total;
+              const row = (name, data) => {
+                const pct = data.pct;
+                const icon = pct >= 80 ? '🟢' : pct >= 70 ? '🟡' : '🔴';
+                return `| ${name} | ${data.covered} / ${data.total} | ${icon} **${pct}%** |`;
+              };
+              return [
+                `### ${label}`,
+                '| Metric | Covered / Total | % |',
+                '|--------|----------------|---|',
+                row('Statements', summary.statements),
+                row('Branches', summary.branches),
+                row('Functions', summary.functions),
+                row('Lines', summary.lines),
+                '',
+              ].join('\n');
+            }
+
+            const body = [
+              '## 📊 Coverage Report',
+              '',
+              parseSummary('coverage/api/coverage-summary.json', '🔧 API (NestJS)'),
+              parseSummary('coverage/web/coverage-summary.json', '🌐 Web (Next.js utilities)'),
+              `> _Coverage gate: ≥ 70% statements. Generated for commit ${context.sha.slice(0, 7)}_`,
+            ].join('\n');
+
+            // Find existing comment to update rather than creating new ones
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+            const existing = comments.find(c =>
+              c.user.login === 'github-actions[bot]' && c.body.includes('📊 Coverage Report')
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+  # ── Build ────────────────────────────────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [api-test, web-test]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter db db:generate
+
+      - name: Build web
+        run: pnpm --filter web build
