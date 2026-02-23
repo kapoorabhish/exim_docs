@@ -257,6 +257,7 @@ These are lightweight integration tests (not full PDF render — just verifying 
 ## 🔴 High Priority
 
 ### #3 — Replace raw `<Tag>` with `<StatusBadge>` design system component
+**Sprint assignment:** Sprint 8, Task 24
 **Files affected:** All 5 export pages, master-data/parties, master-data/products, admin/tenants
 **Problem:** Every page rolls its own `STATUS_COLOR` map and uses raw Ant Design `<Tag color="...">` with hardcoded strings. The design system exports `StatusBadge` from `@exim/ui` which reads from `DocumentStatusConfig` in `@exim/shared`. Any future status color change requires updating 8+ files separately.
 **Fix:**
@@ -267,6 +268,7 @@ These are lightweight integration tests (not full PDF render — just verifying 
 ---
 
 ### #5 — Add `EmptyState` to all data tables
+**Sprint assignment:** Sprint 8, Task 25
 **Files affected:** All list pages (proforma-invoices, invoices, packing-lists, shipping-bills, parties, products, admin/tenants)
 **Problem:** When a table has no data, Ant Design renders a generic empty graphic with no context, CTA, or guidance. This is a major onboarding friction point — first-time users see a blank table with no direction.
 **Fix:**
@@ -327,6 +329,7 @@ Update:
 ---
 
 ### #10 — Standardize search input pattern across pages
+**Sprint assignment:** Sprint 8, Task 27
 **Files affected:** `master-data/parties`, `admin/admin/tenants`, `settings/reference-data`
 **Problem:** Three different search patterns exist:
 - Parties: `Input.Search` with `onSearch` (fires on Enter or button click)
@@ -476,6 +479,7 @@ volumes:
 ---
 
 ### #11 — Build Buyer PO frontend page
+**Sprint assignment:** Sprint 8, Task 26
 **Files affected:** New file needed: `apps/web/app/(dashboard)/exports/buyer-pos/page.tsx`; `components/sidebar.tsx`
 **Problem:** The `BuyerPO` backend module (CRUD + finalize) is fully implemented but there is no frontend page or sidebar navigation entry for it.
 **Fix:**
