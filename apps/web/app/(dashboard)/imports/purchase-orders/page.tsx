@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useCallback } from 'react';
 import {
-  App, Card, Table, Drawer, Form, Input, Select, Space, Segmented,
+  App, Card, Table, Drawer, Form, Input, Select, Space, Radio,
   DatePicker, InputNumber, Popconfirm, Dropdown,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
@@ -257,9 +257,11 @@ export default function PurchaseOrdersPage() {
       >
         <Form form={form} layout="vertical" onFinish={onSave}>
           <Form.Item label="PO Type" name="poType" initialValue="GOODS">
-            <Segmented
+            <Radio.Group
+              optionType="button"
+              buttonStyle="solid"
               options={[{ label: 'Goods / Products', value: 'GOODS' }, { label: 'Services', value: 'SERVICE' }]}
-              onChange={(v) => setPoType(v as 'GOODS' | 'SERVICE')}
+              onChange={(e) => setPoType(e.target.value as 'GOODS' | 'SERVICE')}
             />
           </Form.Item>
 

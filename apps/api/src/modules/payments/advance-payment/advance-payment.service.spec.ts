@@ -124,7 +124,7 @@ describe('AdvancePaymentService', () => {
         makeAdvancePayment({ foreignAmount: 2000, adjustedAmount: 0 }) as any,
       );
       const adjustmentRecord = { id: 'adj-1', advanceId: ADVANCE_PAYMENT_ID, adjustedAmount: 500 };
-      prisma.$transaction.mockImplementation(async (ops: any[]) => {
+      (prisma.$transaction as any).mockImplementation(async (ops: any[]) => {
         return Promise.all(ops.map((op) => op));
       });
       prisma.advancePaymentAdjustment.create.mockResolvedValue(adjustmentRecord as any);
@@ -144,7 +144,7 @@ describe('AdvancePaymentService', () => {
       prisma.advancePayment.findFirst.mockResolvedValue(
         makeAdvancePayment({ foreignAmount: 2000, adjustedAmount: 0 }) as any,
       );
-      prisma.$transaction.mockImplementation(async (ops: any[]) => Promise.all(ops.map((op) => op)));
+      (prisma.$transaction as any).mockImplementation(async (ops: any[]) => Promise.all(ops.map((op) => op)));
       prisma.advancePaymentAdjustment.create.mockResolvedValue({ id: 'adj-2' } as any);
       prisma.advancePayment.update.mockResolvedValue(
         makeAdvancePayment({ adjustedAmount: 2000, status: 'FULLY_ADJUSTED' }) as any,
