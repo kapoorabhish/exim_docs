@@ -438,7 +438,7 @@ async function main() {
   console.log('  → Document Sequences...');
   const fyLabel = '2025-26';
   // lastSequence reflects how many docs we are seeding per type
-  const seqMap: Record<string, number> = { PI: 2, INV: 1, PL: 1, SB: 1, COO: 1, BPO: 0 };
+  const seqMap: Record<string, number> = { PI: 2, INV: 1, PL: 1, SB: 1, COO: 1, BPO: 0, SPO: 1, SINV: 1, BOE: 1, EPAY: 1, IPAY: 1, ADV: 2 };
   for (const [documentType, lastSequence] of Object.entries(seqMap)) {
     await prisma.documentSequence.upsert({
       where: { tenantId_documentType_fyLabel: { tenantId, documentType, fyLabel } },
@@ -728,6 +728,322 @@ async function main() {
     update: {},
   });
 
+  // ── 15. Foreign Supplier Party ────────────────────────────────────────────
+  console.log('  → Foreign supplier party (Zhejiang Textile Co.)...');
+  const zhejiangtextile = await prisma.party.upsert({
+    where: { id: `seed-${tenantId}-zt` },
+    create: {
+      id: `seed-${tenantId}-zt`,
+      tenantId,
+      type: 'VENDOR',
+      name: 'Zhejiang Textile Co., Ltd',
+      address: 'No. 88 Textile Road, Keqiao District',
+      city: 'Shaoxing',
+      state: 'Zhejiang',
+      zip: '312030',
+      country: 'CN',
+      swiftCode: 'ICBKCNBJ',
+      accountNumber: 'CN89123456789012345678901234',
+      defaultPaymentTerms: 'T/T 30 days',
+      contacts: {
+        create: [
+          {
+            name: 'Li Wei',
+            designation: 'Export Manager',
+            email: 'li.wei@zhejiangtextile-demo.cn',
+            phone: '+86-575-88123456',
+            isPrimary: true,
+          },
+        ],
+      },
+    },
+    update: {},
+  });
+
+  // ── 16. Supplier Purchase Order SPO/2025-26/001 (APPROVED) ───────────────
+  console.log('  → Supplier PO SPO/2025-26/001 (APPROVED)...');
+  const spo1 = await prisma.supplierPurchaseOrder.upsert({
+    where: { id: `seed-${tenantId}-spo1` },
+    create: {
+      id: `seed-${tenantId}-spo1`,
+      tenantId,
+      poNumber: 'SPO/2025-26/001',
+      supplierPartyId: zhejiangtextile.id,
+      poType: 'GOODS',
+      currency: 'USD',
+      expectedDeliveryDate: new Date('2026-01-15T00:00:00.000Z'),
+      status: 'APPROVED',
+      totalAmount: 14000,
+      approvedBy: createdBy,
+      approvedAt: new Date('2026-01-05T11:00:00.000Z'),
+      notes: 'Cotton woven fabric for Q1 2026 production',
+      createdBy,
+      lineItems: {
+        create: [
+          {
+            lineNumber: 1,
+            description: 'COTTON FABRIC, WOVEN, DYED, >85% COTTON, WT >200 G/M2',
+            hsCode: '52083200',
+            quantity: 5000,
+            uomCode: 'MTR',
+            unitPrice: 2.80,
+            totalPrice: 14000,
+          },
+        ],
+      },
+    },
+    update: {},
+  });
+
+  // ── 17. Supplier Invoice SINV/2025-26/001 (CLEARED) ──────────────────────
+  console.log('  → Supplier Invoice SINV/2025-26/001 (CLEARED)...');
+  const sinv1 = await prisma.supplierInvoice.upsert({
+    where: { id: `seed-${tenantId}-sinv1` },
+    create: {
+      id: `seed-${tenantId}-sinv1`,
+      tenantId,
+      invoiceNumber: 'SINV/2025-26/001',
+      supplierPartyId: zhejiangtextile.id,
+      poId: spo1.id,
+      currency: 'USD',
+      exchangeRate: 86.42,
+      exchangeRateDate: new Date('2026-01-18T00:00:00.000Z'),
+      invoiceDate: new Date('2026-01-08T00:00:00.000Z'),
+      dueDate: new Date('2026-02-07T00:00:00.000Z'),
+      totalAmount: 14000,
+      status: 'CLEARED',
+      notes: 'Full shipment invoice against SPO/2025-26/001',
+      createdBy,
+      lineItems: {
+        create: [
+          {
+            lineNumber: 1,
+            description: 'COTTON FABRIC, WOVEN, DYED, >85% COTTON, WT >200 G/M2',
+            hsCode: '52083200',
+            quantity: 5000,
+            uomCode: 'MTR',
+            unitPrice: 2.80,
+            totalPrice: 14000,
+          },
+        ],
+      },
+    },
+    update: {},
+  });
+
+  // ── 18. Import Bill of Lading (CARGO_PICKED_UP) ───────────────────────────
+  console.log('  → Import Bill of Lading SITC2601001 (CARGO_PICKED_UP)...');
+  await prisma.importBillOfLading.upsert({
+    where: { id: `seed-${tenantId}-ibl1` },
+    create: {
+      id: `seed-${tenantId}-ibl1`,
+      tenantId,
+      invoiceId: sinv1.id,
+      blNumber: 'SITC2601001',
+      blDate: new Date('2026-01-09T00:00:00.000Z'),
+      shippingLine: 'SITC Container Lines',
+      vesselName: 'SITC QINGDAO / VOY 2601N',
+      containerNumbers: 'SITU1234567, SITU7654321',
+      portOfLoading: 'CNSHA',
+      portOfDischarge: 'INNHAVA',
+      arrivalDate: new Date('2026-01-18T00:00:00.000Z'),
+      freeDays: 14,
+      dailyDemurrageRate: 8000,
+      deliveryOrderNumber: 'DO/SITC/2601/001',
+      deliveryOrderDate: new Date('2026-01-20T00:00:00.000Z'),
+      status: 'CARGO_PICKED_UP',
+      notes: 'Cargo cleared and picked up from CFS on 22-Jan-2026',
+      createdBy,
+    },
+    update: {},
+  });
+
+  // ── 19. Bill of Entry (OUT_OF_CHARGE) ─────────────────────────────────────
+  // CIF value: USD 14,500 (invoice 14,000 + freight 500) × 86.42 = INR 1,253,090
+  // BCD 10%:   125,309  |  SWS 10% of BCD: 12,531
+  // IGST 5% on (CIF + BCD + SWS = 1,390,930):  69,547
+  // Total Duty: 207,387
+  console.log('  → Bill of Entry BOE# 7654321 (OUT_OF_CHARGE)...');
+  const boe1 = await prisma.billOfEntry.upsert({
+    where: { id: `seed-${tenantId}-boe1` },
+    create: {
+      id: `seed-${tenantId}-boe1`,
+      tenantId,
+      boeNumber: '7654321',
+      invoiceId: sinv1.id,
+      portOfEntry: 'INNHAVA',
+      assessedValue: 1253090,
+      basicDuty: 125309,
+      socialWelfareSurcharge: 12531,
+      igst: 69547,
+      compensationCess: 0,
+      totalDuty: 207387,
+      status: 'OUT_OF_CHARGE',
+      filingDate: new Date('2026-01-19T00:00:00.000Z'),
+      examinationDate: new Date('2026-01-20T00:00:00.000Z'),
+      outOfChargeDate: new Date('2026-01-22T00:00:00.000Z'),
+      notes: 'Filed on ICEGATE. Examination completed. Out-of-charge granted 22-Jan-2026.',
+      createdBy,
+    },
+    update: {},
+  });
+
+  // ── 20. Landed Cost ────────────────────────────────────────────────────────
+  // CIF 1,253,090 + duty 207,387 + clearing 12,500 + handling 5,000 + transport 8,000
+  // Total landed: 1,485,977  |  5000 MTR  |  Cost/unit: ₹297.20/MTR
+  console.log('  → Landed Cost (5000 MTR @ ₹297.20/MTR)...');
+  await prisma.landedCost.upsert({
+    where: { id: `seed-${tenantId}-lc1` },
+    create: {
+      id: `seed-${tenantId}-lc1`,
+      tenantId,
+      boeId: boe1.id,
+      cifValue: 1253090,
+      customsDuty: 207387,
+      clearingCharges: 12500,
+      handlingCharges: 5000,
+      transportCharges: 8000,
+      otherCharges: 0,
+      totalLandedCost: 1485977,
+      totalQuantity: 5000,
+      costPerUnit: 297.1954,
+      notes: 'CHA: M/s. Ajay Customs Brokers. Transport: local truck to Andheri warehouse.',
+      createdBy,
+    },
+    update: {},
+  });
+
+  // ── 21. Advance Received from Buyer (ADV/2025-26/001 — FULLY_ADJUSTED) ───
+  console.log('  → Advance Payment ADV/2025-26/001 (RECEIVED, FULLY_ADJUSTED)...');
+  const adv1 = await prisma.advancePayment.upsert({
+    where: { id: `seed-${tenantId}-adv1` },
+    create: {
+      id: `seed-${tenantId}-adv1`,
+      tenantId,
+      advanceNumber: 'ADV/2025-26/001',
+      advanceDate: new Date('2026-01-12T00:00:00.000Z'),
+      type: 'RECEIVED',
+      partyId: globalTraders.id,
+      currency: 'USD',
+      foreignAmount: 5000,
+      exchangeRate: 86.42,
+      inrAmount: 432100,
+      adjustedAmount: 5000,
+      status: 'FULLY_ADJUSTED',
+      purpose: 'Advance against PI/2025-26/001 — Global Traders LLC',
+      createdBy,
+    },
+    update: {},
+  });
+
+  // ── 22. Export Payment EPAY/2025-26/001 (CLEARED) ─────────────────────────
+  // USD 7,500 wire + USD 5,000 advance = USD 12,500 total (invoice fully settled)
+  console.log('  → Export Payment EPAY/2025-26/001 (CLEARED)...');
+  const epay1 = await prisma.exportPayment.upsert({
+    where: { id: `seed-${tenantId}-epay1` },
+    create: {
+      id: `seed-${tenantId}-epay1`,
+      tenantId,
+      paymentNumber: 'EPAY/2025-26/001',
+      paymentDate: new Date('2026-02-05T00:00:00.000Z'),
+      referenceNumber: 'UTR/HDFC/2026/021234',
+      buyerPartyId: globalTraders.id,
+      currency: 'USD',
+      foreignAmount: 7500,
+      exchangeRate: 86.55,
+      inrAmount: 649125,
+      paymentMode: 'WIRE_TRANSFER',
+      bankCharges: 1500,
+      status: 'CLEARED',
+      notes: 'Balance payment. USD 5,000 settled via advance ADV/2025-26/001.',
+      createdBy,
+      allocations: {
+        create: [{ invoiceId: inv1.id, allocatedAmount: 7500 }],
+      },
+    },
+    update: {},
+  });
+
+  // Link advance ADV/2025-26/001 → EPAY/2025-26/001
+  const existingAdj1 = await prisma.advancePaymentAdjustment.count({ where: { advanceId: adv1.id } });
+  if (existingAdj1 === 0) {
+    await prisma.advancePaymentAdjustment.create({
+      data: {
+        advanceId: adv1.id,
+        exportPaymentId: epay1.id,
+        adjustedAmount: 5000,
+        adjustmentDate: new Date('2026-02-05T00:00:00.000Z'),
+        notes: 'Advance fully adjusted against EPAY/2025-26/001',
+      },
+    });
+  }
+
+  // ── 23. Advance Made to Supplier (ADV/2025-26/002 — FULLY_ADJUSTED) ───────
+  console.log('  → Advance Payment ADV/2025-26/002 (MADE, FULLY_ADJUSTED)...');
+  const adv2 = await prisma.advancePayment.upsert({
+    where: { id: `seed-${tenantId}-adv2` },
+    create: {
+      id: `seed-${tenantId}-adv2`,
+      tenantId,
+      advanceNumber: 'ADV/2025-26/002',
+      advanceDate: new Date('2026-01-06T00:00:00.000Z'),
+      type: 'MADE',
+      partyId: zhejiangtextile.id,
+      currency: 'USD',
+      foreignAmount: 3000,
+      exchangeRate: 86.42,
+      inrAmount: 259260,
+      adjustedAmount: 3000,
+      status: 'FULLY_ADJUSTED',
+      purpose: 'Advance payment for cotton fabric import — SINV/2025-26/001',
+      createdBy,
+    },
+    update: {},
+  });
+
+  // ── 24. Import Payment IPAY/2025-26/001 (COMPLETED) ──────────────────────
+  // USD 11,000 wire + USD 3,000 advance = USD 14,000 total (invoice fully settled)
+  console.log('  → Import Payment IPAY/2025-26/001 (COMPLETED)...');
+  const ipay1 = await prisma.importPayment.upsert({
+    where: { id: `seed-${tenantId}-ipay1` },
+    create: {
+      id: `seed-${tenantId}-ipay1`,
+      tenantId,
+      paymentNumber: 'IPAY/2025-26/001',
+      paymentDate: new Date('2026-02-10T00:00:00.000Z'),
+      referenceNumber: 'UTR/HDFC/2026/031567',
+      supplierPartyId: zhejiangtextile.id,
+      currency: 'USD',
+      foreignAmount: 11000,
+      exchangeRate: 86.42,
+      inrAmount: 950620,
+      paymentMode: 'WIRE_TRANSFER',
+      bankCharges: 2000,
+      tdsAmount: 0,
+      status: 'COMPLETED',
+      notes: 'Balance payment. USD 3,000 settled via advance ADV/2025-26/002.',
+      createdBy,
+      allocations: {
+        create: [{ invoiceId: sinv1.id, allocatedAmount: 11000 }],
+      },
+    },
+    update: {},
+  });
+
+  // Link advance ADV/2025-26/002 → IPAY/2025-26/001
+  const existingAdj2 = await prisma.advancePaymentAdjustment.count({ where: { advanceId: adv2.id } });
+  if (existingAdj2 === 0) {
+    await prisma.advancePaymentAdjustment.create({
+      data: {
+        advanceId: adv2.id,
+        importPaymentId: ipay1.id,
+        adjustedAmount: 3000,
+        adjustmentDate: new Date('2026-02-10T00:00:00.000Z'),
+        notes: 'Advance fully adjusted against IPAY/2025-26/001',
+      },
+    });
+  }
+
   // ── Summary ────────────────────────────────────────────────────────────────
   console.log(`
 ✅ Tenant seed complete!
@@ -735,8 +1051,8 @@ async function main() {
   Business Profile  : Sunrise Exports Pvt Ltd
   Bank Accounts     : 2  (HDFC USD export, SBI INR import)
   Exchange Rates    : 9  (USD / EUR / GBP × RBI / CBIC / BANK)
-  Parties           : 5  (3 customers: Global Traders LLC, Euro Fashion GmbH, Al Saud Trading Co.)
-                         (2 vendors:   Textile Mills Pvt Ltd, Packaging Solutions Pvt Ltd)
+  Parties           : 6  (3 customers: Global Traders LLC, Euro Fashion GmbH, Al Saud Trading Co.)
+                         (3 vendors:   Textile Mills Pvt Ltd, Packaging Solutions Pvt Ltd, Zhejiang Textile Co.)
   Products          : 4  (MCS-001, WSD-001, CF-001, HES-001)
   Terms Templates   : 2  (Invoice, Proforma)
   Proforma Invoices : 2  (PI/2025-26/001 → CONVERTED, PI/2025-26/002 → DRAFT)
@@ -745,7 +1061,21 @@ async function main() {
   Shipping Bill     : 1  (SB/2025-26/001 → FILED, SB# 8765432)
   Certificate       : 1  (COO/2025-26/001 → ISSUED)
 
-Document chain: PI/001 → INV/001 → PL/001 + SB/001 + COO/001  ✓
+  ── Imports ──────────────────────────────────────────────
+  Supplier PO       : 1  (SPO/2025-26/001 → APPROVED, Zhejiang Textile, USD 14,000)
+  Supplier Invoice  : 1  (SINV/2025-26/001 → CLEARED, USD 14,000)
+  Import B/L        : 1  (SITC2601001 → CARGO_PICKED_UP, 2 containers)
+  Bill of Entry     : 1  (BOE# 7654321 → OUT_OF_CHARGE, duty ₹2,07,387)
+  Landed Cost       : 1  (5000 MTR @ ₹297.20/MTR, total ₹14,85,977)
+
+  ── Payments ─────────────────────────────────────────────
+  Advance Received  : 1  (ADV/2025-26/001 → FULLY_ADJUSTED, USD 5,000 from Global Traders)
+  Advance Made      : 1  (ADV/2025-26/002 → FULLY_ADJUSTED, USD 3,000 to Zhejiang Textile)
+  Export Payment    : 1  (EPAY/2025-26/001 → CLEARED, USD 7,500 wire + USD 5,000 advance)
+  Import Payment    : 1  (IPAY/2025-26/001 → COMPLETED, USD 11,000 wire + USD 3,000 advance)
+
+  Export chain  : PI/001 → INV/001 → PL/001 + SB/001 + COO/001 + EPAY/001 ✓
+  Import chain  : SPO/001 → SINV/001 → IBL + BOE/001 + LandedCost + IPAY/001 ✓
 `);
 }
 

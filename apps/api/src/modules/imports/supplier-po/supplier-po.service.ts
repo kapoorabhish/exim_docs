@@ -12,13 +12,15 @@ export class SupplierPoService {
   async list(tenantId: string, query: {
     status?: string;
     supplierPartyId?: string;
+    poType?: string;
     page?: number;
     pageSize?: number;
   }) {
-    const { status, supplierPartyId, page = 1, pageSize = 20 } = query;
+    const { status, supplierPartyId, poType, page = 1, pageSize = 20 } = query;
     const where: any = { tenantId };
     if (status) where.status = status;
     if (supplierPartyId) where.supplierPartyId = supplierPartyId;
+    if (poType) where.poType = poType;
 
     const [data, total] = await Promise.all([
       this.prisma.supplierPurchaseOrder.findMany({

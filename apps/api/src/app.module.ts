@@ -9,6 +9,7 @@ import { EmailModule } from './modules/email/email.module';
 import { MasterDataModule } from './modules/master-data/master-data.module';
 import { ExportsModule } from './modules/exports/exports.module';
 import { ImportsModule } from './modules/imports/imports.module';
+import { PaymentsModule } from './modules/payments/payments.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PdfModule } from './modules/pdf/pdf.module';
 
@@ -23,6 +24,7 @@ import { PdfModule } from './modules/pdf/pdf.module';
     MasterDataModule,
     ExportsModule,
     ImportsModule,
+    PaymentsModule,
     AdminModule,
     PdfModule,
   ],

@@ -11,6 +11,9 @@ const PREFIXES: Record<string, string> = {
   SPO:  'SPO',
   SINV: 'SINV',
   BOE:  'BOE',
+  EPAY: 'EPAY',
+  IPAY: 'IPAY',
+  ADV:  'ADV',
 };
 
 @Injectable()
