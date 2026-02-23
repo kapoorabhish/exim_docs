@@ -20,6 +20,7 @@ const config = {
     '\\.(jpg|jpeg|png|gif|svg|ico)$': '<rootDir>/__mocks__/fileMock.js',
   },
   collectCoverageFrom: ['src/lib/**/*.ts', 'src/lib/**/*.tsx'],
+  coverageDirectory: 'coverage',
   coverageThreshold: { global: { statements: 70 } },
 };
 
