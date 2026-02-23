@@ -2,12 +2,15 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma.service';
 
 const PREFIXES: Record<string, string> = {
-  PI:  'PI',
-  INV: 'INV',
-  PL:  'PL',
-  SB:  'SB',
-  COO: 'COO',
-  BPO: 'PO',
+  PI:   'PI',
+  INV:  'INV',
+  PL:   'PL',
+  SB:   'SB',
+  COO:  'COO',
+  BPO:  'PO',
+  SPO:  'SPO',
+  SINV: 'SINV',
+  BOE:  'BOE',
 };
 
 @Injectable()

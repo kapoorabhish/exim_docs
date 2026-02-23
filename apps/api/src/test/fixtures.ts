@@ -201,3 +201,189 @@ export function makeDocumentSequence(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+// ─── Import Module Fixtures ───────────────────────────────
+
+export const SUPPLIER_ID = 'supplier-party-id';
+export const SPO_ID = 'spo-id';
+export const SINV_ID = 'sinv-id';
+export const BOE_ID = 'boe-id';
+
+export function makeSupplierPo(overrides: Record<string, unknown> = {}) {
+  return {
+    id: SPO_ID,
+    tenantId: TENANT_ID,
+    poNumber: 'SPO/2025-26/001',
+    supplierPartyId: SUPPLIER_ID,
+    currency: 'USD',
+    expectedDeliveryDate: null,
+    status: 'DRAFT',
+    totalAmount: 5000,
+    approvedBy: null,
+    approvedAt: null,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    supplier: makeParty({ id: SUPPLIER_ID, name: 'Test Supplier Ltd', type: 'VENDOR' }),
+    lineItems: [],
+    supplierInvoices: [],
+    ...overrides,
+  };
+}
+
+export function makeSupplierPoLineItem(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'spo-li-id',
+    poId: SPO_ID,
+    lineNumber: 1,
+    description: 'Test Import Item',
+    hsCode: '6109.10',
+    quantity: 100,
+    uomCode: 'PCS',
+    unitPrice: 50,
+    totalPrice: 5000,
+    ...overrides,
+  };
+}
+
+export function makeSupplierInvoice(overrides: Record<string, unknown> = {}) {
+  return {
+    id: SINV_ID,
+    tenantId: TENANT_ID,
+    invoiceNumber: 'SINV/2025-26/001',
+    supplierPartyId: SUPPLIER_ID,
+    poId: null,
+    currency: 'USD',
+    exchangeRate: 83.5,
+    exchangeRateDate: null,
+    invoiceDate: new Date(),
+    dueDate: null,
+    totalAmount: 5000,
+    status: 'DRAFT',
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    supplier: makeParty({ id: SUPPLIER_ID, name: 'Test Supplier Ltd', type: 'VENDOR' }),
+    po: null,
+    lineItems: [],
+    billsOfEntry: [],
+    importBls: [],
+    ...overrides,
+  };
+}
+
+export function makeSupplierInvoiceLineItem(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'sinv-li-id',
+    invoiceId: SINV_ID,
+    lineNumber: 1,
+    description: 'Test Import Item',
+    hsCode: '6109.10',
+    quantity: 100,
+    uomCode: 'PCS',
+    unitPrice: 50,
+    totalPrice: 5000,
+    ...overrides,
+  };
+}
+
+export function makeBoe(overrides: Record<string, unknown> = {}) {
+  return {
+    id: BOE_ID,
+    tenantId: TENANT_ID,
+    boeNumber: null,
+    invoiceId: SINV_ID,
+    portOfEntry: 'INNSA',
+    assessedValue: 417500,  // 5000 USD × 83.5 INR
+    basicDuty: 41750,       // 10% BCD
+    socialWelfareSurcharge: 4175, // 10% of BCD
+    igst: 83502,            // 18% of (CIF + BCD + SWS)
+    compensationCess: 0,
+    totalDuty: 129427,
+    status: 'DRAFT',
+    filingDate: null,
+    examinationDate: null,
+    outOfChargeDate: null,
+    dutyPaidDate: null,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    invoice: makeSupplierInvoice(),
+    landedCosts: [],
+    importDocs: [],
+    ...overrides,
+  };
+}
+
+export function makeLandedCost(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'lc-id',
+    tenantId: TENANT_ID,
+    boeId: BOE_ID,
+    cifValue: 417500,
+    customsDuty: 129427,
+    clearingCharges: 15000,
+    handlingCharges: 5000,
+    transportCharges: 8000,
+    otherCharges: 2000,
+    totalLandedCost: 576927,
+    totalQuantity: 100,
+    costPerUnit: 5769.27,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    boe: makeBoe(),
+    ...overrides,
+  };
+}
+
+export function makeImportBl(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'import-bl-id',
+    tenantId: TENANT_ID,
+    invoiceId: SINV_ID,
+    blNumber: 'MSCUBL123456',
+    blDate: new Date(),
+    shippingLine: 'MSC',
+    vesselName: 'MSC Gülsün',
+    containerNumbers: 'MSKU1234567,MSKU7654321',
+    portOfLoading: 'CNSHA',
+    portOfDischarge: 'INNSA',
+    arrivalDate: new Date(),
+    freeDays: 14,
+    dailyDemurrageRate: 150,
+    deliveryOrderNumber: null,
+    deliveryOrderDate: null,
+    status: 'RECEIVED',
+    documentUrl: null,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    invoice: makeSupplierInvoice(),
+    ...overrides,
+  };
+}
+
+export function makeImportDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'import-doc-id',
+    tenantId: TENANT_ID,
+    boeId: BOE_ID,
+    documentType: 'COO',
+    documentNumber: 'COO-2025-001',
+    documentDate: new Date(),
+    issuingAuthority: 'China Council for Promotion of International Trade',
+    documentUrl: null,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    boe: makeBoe(),
+    ...overrides,
+  };
+}

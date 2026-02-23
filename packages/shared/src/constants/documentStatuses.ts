@@ -80,6 +80,21 @@ export const DocumentStatus = {
   // e-Invoice IRN
   IRN_GENERATED: 'irn_generated',
   IRN_CANCELLED: 'irn_cancelled',
+
+  // Supplier Purchase Order — approval & fulfilment lifecycle
+  PENDING_APPROVAL: 'pending_approval',
+  PARTIALLY_FULFILLED: 'partially_fulfilled',
+  FULLY_FULFILLED: 'fully_fulfilled',
+  CLOSED: 'closed',
+
+  // Bill of Entry — customs clearance lifecycle
+  EXAMINED: 'examined',
+  OUT_OF_CHARGE: 'out_of_charge',
+  DUTY_PAID: 'duty_paid',
+
+  // Import Bill of Lading — delivery lifecycle
+  DELIVERY_ORDER_ISSUED: 'delivery_order_issued',
+  CARGO_PICKED_UP: 'cargo_picked_up',
 } as const;
 
 export type DocumentStatusType = (typeof DocumentStatus)[keyof typeof DocumentStatus];
@@ -140,6 +155,18 @@ export const DocumentStatusConfig: Record<
 
   [DocumentStatus.IRN_GENERATED]: { label: 'IRN Generated', color: 'success' },
   [DocumentStatus.IRN_CANCELLED]: { label: 'IRN Cancelled', color: 'error' },
+
+  [DocumentStatus.PENDING_APPROVAL]: { label: 'Pending Approval', color: 'processing' },
+  [DocumentStatus.PARTIALLY_FULFILLED]: { label: 'Partially Fulfilled', color: 'warning' },
+  [DocumentStatus.FULLY_FULFILLED]: { label: 'Fully Fulfilled', color: 'success' },
+  [DocumentStatus.CLOSED]: { label: 'Closed', color: 'default' },
+
+  [DocumentStatus.EXAMINED]: { label: 'Examined', color: 'processing' },
+  [DocumentStatus.OUT_OF_CHARGE]: { label: 'Out of Charge', color: 'success' },
+  [DocumentStatus.DUTY_PAID]: { label: 'Duty Paid', color: 'success' },
+
+  [DocumentStatus.DELIVERY_ORDER_ISSUED]: { label: 'D/O Issued', color: 'warning' },
+  [DocumentStatus.CARGO_PICKED_UP]: { label: 'Cargo Picked Up', color: 'success' },
 };
 
 export const DocumentType = {

@@ -57,7 +57,10 @@ function getMenuItems(role: string): MenuItem[] {
       label: 'Imports',
       children: [
         { key: '/imports/purchase-orders', icon: <ShoppingCartOutlined />, label: 'Purchase Orders' },
+        { key: '/imports/supplier-invoices', icon: <FileTextOutlined />, label: 'Supplier Invoices' },
         { key: '/imports/bills-of-entry', icon: <BlockOutlined />, label: 'Bills of Entry' },
+        { key: '/imports/import-bl', icon: <ContainerOutlined />, label: 'Import B/L' },
+        { key: '/imports/register', icon: <UnorderedListOutlined />, label: 'Import Register' },
       ],
     },
     {
