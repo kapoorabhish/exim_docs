@@ -15,6 +15,10 @@ const config: Config = {
       },
     }],
   },
+  moduleNameMapper: {
+    '^@exim/pdf$': '<rootDir>/../../../packages/pdf/src/index.ts',
+    '^@exim/shared$': '<rootDir>/../../../packages/shared/src/index.ts',
+  },
   collectCoverageFrom: ['modules/**/*.service.ts'],
   coverageDirectory: '../coverage',
   coverageReporters: ['json-summary', 'text'],
