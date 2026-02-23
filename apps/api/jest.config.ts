@@ -17,6 +17,7 @@ const config: Config = {
   },
   collectCoverageFrom: ['modules/**/*.service.ts'],
   coverageDirectory: '../coverage',
+  coverageReporters: ['json-summary', 'text'],
   coverageThreshold: {
     global: { statements: 70 },
   },

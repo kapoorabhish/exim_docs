@@ -21,6 +21,7 @@ const config = {
   },
   collectCoverageFrom: ['src/lib/**/*.ts', 'src/lib/**/*.tsx'],
   coverageDirectory: 'coverage',
+  coverageReporters: ['json-summary', 'text'],
   coverageThreshold: { global: { statements: 70 } },
 };
 
