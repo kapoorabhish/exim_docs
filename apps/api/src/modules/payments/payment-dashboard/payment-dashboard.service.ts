@@ -49,7 +49,7 @@ export class PaymentDashboardService {
         _count: true,
       }),
       this.prisma.commercialInvoice.aggregate({
-        where: { tenantId, status: { in: ['DRAFT', 'FINALIZED'] } },
+        where: { tenantId, status: { in: ['DRAFT', 'FINALIZED', 'LOCKED'] } },
         _sum: { totalAmount: true },
         _count: true,
       }),
@@ -62,7 +62,7 @@ export class PaymentDashboardService {
     ]);
 
     const exportInvoices = await this.prisma.commercialInvoice.findMany({
-      where: { tenantId, status: { in: ['DRAFT', 'FINALIZED'] } },
+      where: { tenantId, status: { in: ['DRAFT', 'FINALIZED', 'LOCKED'] } },
       include: { buyer: { select: { id: true, name: true } } },
     });
 
