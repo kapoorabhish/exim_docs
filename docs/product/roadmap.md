@@ -15,8 +15,8 @@
 | Sprint 4 | Export Completion (B/L, Insurance, BRC, Register) + PDF Templates | E4-S10, E4-S11, E4-S13, E4-S14, E4-S16, E4-S18, E11-S1–S3 | [Sprint 4](sprints/sprint-04.md) |
 | Sprint 5 | Unit Test Suite — Sprints 1–4 debt (Jest infra + 21 spec files, 270 tests, 90% coverage) | Backlog #15 | [Sprint 5](sprints/sprint-05.md) |
 | Sprint 6 | Import Documentation — full E5 (all 14 stories) + backend & frontend unit tests | E5-S1–S14 | [Sprint 6](sprints/sprint-06.md) |
-| Sprint 7 | Payments & Banking | E7-S1–S12 | Planned |
-| Sprint 8 | GST & Compliance + LC Management | E8-S1–S10, E6-S1–S5 | Planned |
+| Sprint 7 | Payments & Banking (core) + PO Type + TAN/CIN | E7-S1–S3, E7-S5–S7, E7-S11 + enhancements | [Sprint 7](sprints/sprint-07.md) |
+| Sprint 8 | Payments completion + GST & Compliance + LC Management | E7-S4, E7-S8–S10, E7-S12, E8-S1–S10, E6-S1–S5 | Planned |
 | Sprint 9 | Reports, Analytics, Dashboards | E10-S1–S8 | Planned |
 | Sprint 10 | Shipping, CHA Portal, Communication | E9-S1–S10, E12-S1–S5 | Planned |
 | Sprint 11 | Polish — Notifications, Bulk Operations, Advanced Reports | E12-S6–S10, E10-S9–S12, E11-S6–S8 | Planned |

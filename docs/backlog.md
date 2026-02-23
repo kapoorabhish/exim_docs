@@ -489,6 +489,43 @@ volumes:
 
 ---
 
+### #17 — PO Type: Service PO vs Goods/Parts PO
+**Priority:** 🔴 High — assigned to Sprint 7
+**Sprint assignment:** Sprint 7, Task 2 & 10
+**Scope:** Both `SupplierPurchaseOrder` and `BuyerPurchaseOrder`
+
+**Problem:** All POs are currently treated as goods orders. Service purchases (consulting, freight, clearing charges, etc.) do not require HS codes or UOM in the traditional sense but need to be tracked as POs for payment purposes.
+
+**Fix:**
+1. Add `poType PoType @default(GOODS)` to both PO models in Prisma schema (`PoType` enum: `GOODS | SERVICE`)
+2. Backend: `hsCode` optional for SERVICE type POs; `uomCode` defaults to `"HOURS"` for service line items
+3. Frontend: PO drawer shows a **PO Type** toggle (Goods / Service) at the top; when SERVICE is selected:
+   - HS Code column hidden from line items table
+   - UOM defaults to HOURS
+   - Column header changes from "Description" to "Service Description"
+
+---
+
+### #18 — TAN and CIN in Business Profile
+**Priority:** 🔴 High — assigned to Sprint 7
+**Sprint assignment:** Sprint 7, Task 3 & 9
+**Scope:** `Tenant` model + Settings > Profile page
+
+**Problem:** The business profile currently stores GSTIN, IEC, and PAN. Two additional Indian tax identifiers are missing:
+- **TAN** (Tax Deduction and Collection Account Number) — required for TDS deduction on domestic supplier payments
+- **CIN** (Corporate Identity Number) — required for Pvt Ltd / Public Ltd companies under Companies Act 2013; LLPs use LLPIN instead
+
+**Fix:**
+1. Add `tan String?` and `cin String?` to the `Tenant` Prisma model
+2. Expose in `GET /tenant` and `PATCH /tenant` API endpoints
+3. Frontend: Add a "Tax Identifiers" section in `settings/profile/page.tsx` with:
+   - TAN field (format: 4 letters + 5 digits + 1 letter, e.g. MUMA12345A)
+   - CIN field (21-char alphanumeric, e.g. L12345MH2000PLC123456)
+   - Client-side format validation on blur
+   - Both fields optional (not all entity types require both)
+
+---
+
 ## Already Fixed (reference)
 
 | # | Issue | Fixed In |
