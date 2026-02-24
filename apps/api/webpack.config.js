@@ -4,7 +4,7 @@ module.exports = (options, webpack) => {
   return {
     ...options,
     entry: {
-      serverless: path.join(__dirname, 'src', 'serverless.ts'),
+      server: path.join(__dirname, 'src', 'serverless.ts'),
     },
     externals: [
       function ({ request }, callback) {

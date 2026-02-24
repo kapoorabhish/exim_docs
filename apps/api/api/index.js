@@ -1,2 +1,2 @@
-const handler = require('../dist/serverless');
+const handler = require('../dist/server');
 module.exports = handler.default || handler;
