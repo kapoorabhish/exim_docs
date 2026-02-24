@@ -3,12 +3,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   App, Card, Table, Drawer, Form, Input, Select, Space,
-  DatePicker, InputNumber, Divider, Tag, Popconfirm,
+  DatePicker, InputNumber, Divider, Tag, Popconfirm, Descriptions, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined, CheckOutlined, EditOutlined, FilePdfOutlined, EyeOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { PageHeader, Button } from '@exim/ui';
+import { PageHeader, Button, StatusBadge } from '@exim/ui';
+import type { DocumentStatusType } from '@exim/shared';
 import PdfViewerModal from '../../../../components/pdf-viewer-modal';
 import api from '../../../../lib/api';
 
@@ -43,12 +44,24 @@ export default function PackingListsPage() {
   ]);
 
   const [invoices, setInvoices] = useState<{ id: string; invoiceNumber: string }[]>([]);
+  const [invView, setInvView] = useState<{ open: boolean; loading: boolean; data: any }>({ open: false, loading: false, data: null });
 
   const fetchInvoices = useCallback(async () => {
     const { data } = await api.get('/invoices', { params: { limit: 200 } });
     const p = data.data || data;
     setInvoices(p.data || p);
   }, []);
+
+  const openInvView = async (invoiceId: string) => {
+    setInvView({ open: true, loading: true, data: null });
+    try {
+      const { data } = await api.get(`/invoices/${invoiceId}`);
+      setInvView({ open: true, loading: false, data: data.data || data });
+    } catch {
+      message.error('Failed to load invoice details');
+      setInvView({ open: false, loading: false, data: null });
+    }
+  };
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -171,7 +184,14 @@ export default function PackingListsPage() {
 
   const columns: ColumnsType<PL> = [
     { title: 'PL Number', dataIndex: 'plNumber', key: 'plNumber', render: (n) => <span style={{ fontWeight: 500 }}>{n}</span> },
-    { title: 'Invoice', dataIndex: ['invoice', 'invoiceNumber'], key: 'invoice' },
+    {
+      title: 'Invoice', key: 'invoice',
+      render: (_, r) => (
+        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => openInvView(r.invoiceId)}>
+          {r.invoice?.invoiceNumber}
+        </Button>
+      ),
+    },
     { title: 'Date', dataIndex: 'date', key: 'date', render: (d) => dayjs(d).format('DD MMM YYYY') },
     { title: 'Packages', dataIndex: 'totalPackages', key: 'totalPackages', align: 'center', render: (v) => v ?? '—' },
     { title: 'Net Wt (kg)', dataIndex: 'totalNetWeight', key: 'totalNetWeight', align: 'right', render: (v) => v ? Number(v).toFixed(3) : '—' },
@@ -358,6 +378,50 @@ export default function PackingListsPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
+      </Drawer>
+
+      {/* Invoice Quick-View Drawer */}
+      <Drawer
+        title={invView.data?.invoiceNumber || 'Invoice Details'}
+        open={invView.open}
+        onClose={() => setInvView(v => ({ ...v, open: false }))}
+        width={640}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', display: 'flex' }}>
+            {invView.data && (
+              <Button
+                intent="default"
+                icon={<FilePdfOutlined />}
+                onClick={() => setPdfViewer({
+                  open: true,
+                  pdfUrl: `/pdf/invoices/${invView.data.id}`,
+                  title: invView.data.invoiceNumber,
+                  filename: `${invView.data.invoiceNumber}.pdf`,
+                })}
+              >
+                Preview PDF
+              </Button>
+            )}
+            <Button intent="default" onClick={() => setInvView(v => ({ ...v, open: false }))}>Close</Button>
+          </Space>
+        }
+      >
+        {invView.loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
+        ) : invView.data ? (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Invoice No">{invView.data.invoiceNumber}</Descriptions.Item>
+            <Descriptions.Item label="Date">{invView.data.date ? dayjs(invView.data.date).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Buyer">{invView.data.buyer?.name}</Descriptions.Item>
+            <Descriptions.Item label="Currency">{invView.data.currency}</Descriptions.Item>
+            <Descriptions.Item label="Total Amount">
+              {invView.data.currency} {Number(invView.data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <StatusBadge status={invView.data.status?.toLowerCase() as DocumentStatusType} />
+            </Descriptions.Item>
+          </Descriptions>
+        ) : null}
       </Drawer>
 
       <PdfViewerModal

@@ -14,6 +14,8 @@ interface PdfViewerModalProps {
   /** Filename for the downloaded file e.g. INV-2526-001.pdf */
   filename: string;
   onClose: () => void;
+  /** Override z-index when opening from inside nested drawers (default: Ant Design default ~1000) */
+  zIndex?: number;
 }
 
 type LoadState = 'idle' | 'loading' | 'ready' | 'error';
@@ -24,6 +26,7 @@ export default function PdfViewerModal({
   pdfUrl,
   filename,
   onClose,
+  zIndex,
 }: PdfViewerModalProps) {
   const [loadState, setLoadState] = useState<LoadState>('idle');
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
@@ -87,6 +90,7 @@ export default function PdfViewerModal({
       styles={{ body: { padding: 0 } }}
       footer={null}
       destroyOnHidden
+      {...(zIndex !== undefined && { zIndex })}
     >
       {/* Toolbar: shown only when PDF is ready */}
       {loadState === 'ready' && (

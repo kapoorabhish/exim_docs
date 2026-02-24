@@ -95,6 +95,32 @@ export const DocumentStatus = {
   // Import Bill of Lading — delivery lifecycle
   DELIVERY_ORDER_ISSUED: 'delivery_order_issued',
   CARGO_PICKED_UP: 'cargo_picked_up',
+
+  // Letter of Credit — lifecycle
+  UNDER_REVIEW: 'under_review',
+  PAYMENT_RELEASED: 'payment_released',
+
+  // Bank reconciliation
+  UNRECONCILED: 'unreconciled',
+  MANUALLY_MATCHED: 'manually_matched',
+  EXCLUDED: 'excluded',
+
+  // IGST Credit
+  UNCLAIMED: 'unclaimed',
+
+  // IEC Status
+  UPDATE_DUE: 'update_due',
+  DEACTIVATED: 'deactivated',
+
+  // LC Document checklist
+  NOT_STARTED: 'not_started',
+  IN_PROGRESS: 'in_progress',
+  READY: 'ready',
+
+  // LC Discrepancy
+  OPEN: 'open',
+  RESOLVED: 'resolved',
+  WAIVED: 'waived',
 } as const;
 
 export type DocumentStatusType = (typeof DocumentStatus)[keyof typeof DocumentStatus];
@@ -167,6 +193,26 @@ export const DocumentStatusConfig: Record<
 
   [DocumentStatus.DELIVERY_ORDER_ISSUED]: { label: 'D/O Issued', color: 'warning' },
   [DocumentStatus.CARGO_PICKED_UP]: { label: 'Cargo Picked Up', color: 'success' },
+
+  [DocumentStatus.UNDER_REVIEW]: { label: 'Under Review', color: 'processing' },
+  [DocumentStatus.PAYMENT_RELEASED]: { label: 'Payment Released', color: 'success' },
+
+  [DocumentStatus.UNRECONCILED]: { label: 'Unreconciled', color: 'default' },
+  [DocumentStatus.MANUALLY_MATCHED]: { label: 'Manually Matched', color: 'success' },
+  [DocumentStatus.EXCLUDED]: { label: 'Excluded', color: 'default' },
+
+  [DocumentStatus.UNCLAIMED]: { label: 'Unclaimed', color: 'warning' },
+
+  [DocumentStatus.UPDATE_DUE]: { label: 'Update Due', color: 'warning' },
+  [DocumentStatus.DEACTIVATED]: { label: 'Deactivated', color: 'error' },
+
+  [DocumentStatus.NOT_STARTED]: { label: 'Not Started', color: 'default' },
+  [DocumentStatus.IN_PROGRESS]: { label: 'In Progress', color: 'processing' },
+  [DocumentStatus.READY]: { label: 'Ready', color: 'success' },
+
+  [DocumentStatus.OPEN]: { label: 'Open', color: 'warning' },
+  [DocumentStatus.RESOLVED]: { label: 'Resolved', color: 'success' },
+  [DocumentStatus.WAIVED]: { label: 'Waived', color: 'default' },
 };
 
 export const DocumentType = {

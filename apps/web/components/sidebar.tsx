@@ -24,6 +24,12 @@ import {
   ContainerOutlined,
   GlobalOutlined,
   UnorderedListOutlined,
+  SafetyCertificateOutlined,
+  ReconciliationOutlined,
+  CreditCardOutlined,
+  CalendarOutlined,
+  UploadOutlined,
+  LineChartOutlined,
 } from '@ant-design/icons';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '../lib/auth-store';
@@ -44,6 +50,7 @@ function getMenuItems(role: string): MenuItem[] {
       icon: <ExportOutlined />,
       label: 'Exports',
       children: [
+        { key: '/exports/buyer-pos', icon: <ShoppingCartOutlined />, label: 'Buyer POs' },
         { key: '/exports/proforma-invoices', icon: <FileDoneOutlined />, label: 'Proforma Invoices' },
         { key: '/exports/invoices', icon: <FileTextOutlined />, label: 'Invoices' },
         { key: '/exports/packing-lists', icon: <ContainerOutlined />, label: 'Packing Lists' },
@@ -75,6 +82,33 @@ function getMenuItems(role: string): MenuItem[] {
         { key: '/payments/receivables', icon: <BankOutlined />, label: 'Receivables' },
         { key: '/payments/payables', icon: <BankOutlined />, label: 'Payables' },
         { key: '/payments/party-ledger', icon: <UnorderedListOutlined />, label: 'Party Ledger' },
+        { key: '/payments/reminders', icon: <CalendarOutlined />, label: 'Reminders' },
+        { key: '/payments/bank-statements', icon: <UploadOutlined />, label: 'Bank Statements' },
+        { key: '/payments/reconciliation', icon: <ReconciliationOutlined />, label: 'Reconciliation' },
+        { key: '/payments/forex', icon: <LineChartOutlined />, label: 'Forex Gain/Loss' },
+        { key: '/payments/tally-export', icon: <ExportOutlined />, label: 'Tally Export' },
+      ],
+    },
+    {
+      key: '/lc',
+      icon: <CreditCardOutlined />,
+      label: 'Letter of Credit',
+      children: [
+        { key: '/lc/register', icon: <UnorderedListOutlined />, label: 'LC Register' },
+      ],
+    },
+    {
+      key: '/gst',
+      icon: <SafetyCertificateOutlined />,
+      label: 'GST & Compliance',
+      children: [
+        { key: '/gst/dashboard', icon: <DashboardOutlined />, label: 'Dashboard' },
+        { key: '/gst/lut', icon: <FileDoneOutlined />, label: 'LUT Management' },
+        { key: '/gst/gstr1', icon: <FileTextOutlined />, label: 'GSTR-1 Table 6A' },
+        { key: '/gst/igst-credit', icon: <ReconciliationOutlined />, label: 'IGST Credit Register' },
+        { key: '/gst/gstr3b', icon: <AuditOutlined />, label: 'GSTR-3B Data' },
+        { key: '/gst/reconciliation', icon: <SwapOutlined />, label: 'GST Reconciliation' },
+        { key: '/gst/iec', icon: <SafetyCertificateOutlined />, label: 'IEC Tracking' },
       ],
     },
     {
@@ -133,7 +167,7 @@ function findSelectedKey(pathname: string, items: MenuItem[]): string {
   return sorted.find((k) => pathname === k || pathname.startsWith(k + '/')) || pathname;
 }
 
-function findOpenKeys(pathname: string, items: MenuItem[]): string[] {
+function findOpenKeys(pathname: string): string[] {
   const segments = pathname.split('/').filter(Boolean);
   if (segments.length > 1) {
     // Open the top-level parent group
@@ -150,7 +184,7 @@ export default function Sidebar({ collapsed, onCollapse }: { collapsed: boolean;
 
   const items = getMenuItems(role);
   const selectedKey = findSelectedKey(pathname, items);
-  const openKeys = findOpenKeys(pathname, items);
+  const openKeys = findOpenKeys(pathname);
 
   const onClick: MenuProps['onClick'] = (e) => {
     router.push(e.key);

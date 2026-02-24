@@ -3,12 +3,14 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   App, Card, Table, Drawer, Form, Input, Select, Space,
-  DatePicker, InputNumber, Divider, Tag, Modal, Steps, Descriptions,
+  DatePicker, InputNumber, Divider, Tag, Modal, Steps, Descriptions, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, DeleteOutlined, MoreOutlined, EditOutlined, ApartmentOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, MoreOutlined, EditOutlined, ApartmentOutlined, FilePdfOutlined } from '@ant-design/icons';
+import PdfViewerModal from '../../../../components/pdf-viewer-modal';
 import dayjs from 'dayjs';
-import { PageHeader, Button } from '@exim/ui';
+import { PageHeader, Button, StatusBadge } from '@exim/ui';
+import type { DocumentStatusType } from '@exim/shared';
 import api from '../../../../lib/api';
 
 interface SB {
@@ -20,7 +22,7 @@ interface SB {
   portCode: string;
   modeOfShipment: string;
   totalFobInr: number;
-  invoice: { invoiceNumber: string };
+  invoice: { id: string; invoiceNumber: string };
 }
 
 const STATUS_ORDER = ['DRAFT', 'FILED', 'UNDER_ASSESSMENT', 'ASSESSED', 'LEO', 'SHIPPED'];
@@ -62,6 +64,9 @@ export default function ShippingBillsPage() {
   // Detail view (status history)
   const [detailRecord, setDetailRecord] = useState<any>(null);
 
+  const [invView, setInvView] = useState<{ open: boolean; loading: boolean; data: any }>({ open: false, loading: false, data: null });
+  const [pdfModal, setPdfModal] = useState<{ open: boolean; url: string | null; title: string; filename: string }>({ open: false, url: null, title: '', filename: '' });
+
   // B/L form
   const [blOpen, setBlOpen] = useState(false);
   const [blSb, setBlSb] = useState<SB | null>(null);
@@ -75,6 +80,17 @@ export default function ShippingBillsPage() {
     const p = data.data || data;
     setInvoices(p.data || p);
   }, []);
+
+  const openInvView = async (invoiceId: string) => {
+    setInvView({ open: true, loading: true, data: null });
+    try {
+      const { data } = await api.get(`/invoices/${invoiceId}`);
+      setInvView({ open: true, loading: false, data: data.data || data });
+    } catch {
+      message.error('Failed to load invoice details');
+      setInvView({ open: false, loading: false, data: null });
+    }
+  };
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -220,7 +236,14 @@ export default function ShippingBillsPage() {
       key: 'sbNumber',
       render: (_, r) => <span style={{ fontWeight: 500 }}>{r.sbNumber || <span style={{ color: '#bbb' }}>Pending</span>}</span>,
     },
-    { title: 'Invoice', dataIndex: ['invoice', 'invoiceNumber'], key: 'invoice' },
+    {
+      title: 'Invoice', key: 'invoice',
+      render: (_, r) => (
+        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => openInvView(r.invoice.id)}>
+          {r.invoice?.invoiceNumber}
+        </Button>
+      ),
+    },
     {
       title: 'Type',
       dataIndex: 'sbType',
@@ -483,6 +506,58 @@ export default function ShippingBillsPage() {
           </Form.Item>
         </Form>
       </Modal>
+
+      {/* Invoice Quick-View Drawer */}
+      <Drawer
+        title={invView.data?.invoiceNumber || 'Invoice Details'}
+        open={invView.open}
+        onClose={() => setInvView(v => ({ ...v, open: false }))}
+        width={640}
+        footer={
+          <Space style={{ justifyContent: 'flex-end', display: 'flex' }}>
+            {invView.data && (
+              <Button
+                intent="default"
+                icon={<FilePdfOutlined />}
+                onClick={() => setPdfModal({
+                  open: true,
+                  url: `/pdf/invoices/${invView.data.id}`,
+                  title: invView.data.invoiceNumber,
+                  filename: `${invView.data.invoiceNumber}.pdf`,
+                })}
+              >
+                Preview PDF
+              </Button>
+            )}
+            <Button intent="default" onClick={() => setInvView(v => ({ ...v, open: false }))}>Close</Button>
+          </Space>
+        }
+      >
+        {invView.loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
+        ) : invView.data ? (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Invoice No">{invView.data.invoiceNumber}</Descriptions.Item>
+            <Descriptions.Item label="Date">{invView.data.date ? dayjs(invView.data.date).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Buyer">{invView.data.buyer?.name}</Descriptions.Item>
+            <Descriptions.Item label="Currency">{invView.data.currency}</Descriptions.Item>
+            <Descriptions.Item label="Total Amount">
+              {invView.data.currency} {Number(invView.data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <StatusBadge status={invView.data.status?.toLowerCase() as DocumentStatusType} />
+            </Descriptions.Item>
+          </Descriptions>
+        ) : null}
+      </Drawer>
+
+      <PdfViewerModal
+        open={pdfModal.open}
+        title={pdfModal.title}
+        pdfUrl={pdfModal.url}
+        filename={pdfModal.filename}
+        onClose={() => setPdfModal(v => ({ ...v, open: false }))}
+      />
 
       {/* ── Bill of Lading Drawer ── */}
       <Drawer

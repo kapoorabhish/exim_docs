@@ -3,7 +3,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   App, Card, Table, Drawer, Form, Input, Select, Space,
-  DatePicker, InputNumber, Popconfirm, Modal,
+  DatePicker, InputNumber, Popconfirm, Modal, Descriptions, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, DeleteOutlined, ClockCircleOutlined } from '@ant-design/icons';
@@ -61,6 +61,7 @@ export default function ImportBlPage() {
   const [invoices, setInvoices] = useState<{ id: string; invoiceNumber: string }[]>([]);
   const [form] = Form.useForm();
   const [demurrageModal, setDemurrageModal] = useState<{ open: boolean; bl?: ImportBl; info?: DemurrageInfo }>({ open: false });
+  const [siView, setSiView] = useState<{ open: boolean; loading: boolean; data: any }>({ open: false, loading: false, data: null });
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -68,6 +69,17 @@ export default function ImportBlPage() {
       const p = data.data || data; setInvoices(Array.isArray(p) ? p : p.data || []);
     } catch { /* silent */ }
   }, []);
+
+  const openSiView = async (invoiceId: string) => {
+    setSiView({ open: true, loading: true, data: null });
+    try {
+      const { data } = await api.get(`/supplier-invoices/${invoiceId}`);
+      setSiView({ open: true, loading: false, data: data.data || data });
+    } catch {
+      message.error('Failed to load supplier invoice details');
+      setSiView({ open: false, loading: false, data: null });
+    }
+  };
 
   const fetchRecords = useCallback(async () => {
     setLoading(true);
@@ -153,7 +165,14 @@ export default function ImportBlPage() {
 
   const columns: ColumnsType<ImportBl> = [
     { title: 'B/L Number', dataIndex: 'blNumber', key: 'blNumber', render: (n) => <span style={{ fontWeight: 500 }}>{n}</span> },
-    { title: 'Invoice', dataIndex: ['invoice', 'invoiceNumber'], key: 'invoice' },
+    {
+      title: 'Invoice', key: 'invoice',
+      render: (_, bl) => (
+        <Button type="link" size="small" style={{ padding: 0 }} onClick={() => openSiView(bl.invoice.id)}>
+          {bl.invoice?.invoiceNumber}
+        </Button>
+      ),
+    },
     { title: 'Shipping Line', dataIndex: 'shippingLine', key: 'shippingLine', render: (s) => s || '—' },
     { title: 'Vessel', dataIndex: 'vesselName', key: 'vesselName', render: (v) => v || '—' },
     { title: 'Arrival Date', dataIndex: 'arrivalDate', key: 'arrivalDate', render: (d) => d ? dayjs(d).format('DD MMM YYYY') : '—' },
@@ -316,6 +335,33 @@ export default function ImportBlPage() {
             <Input.TextArea rows={2} />
           </Form.Item>
         </Form>
+      </Drawer>
+
+      {/* Supplier Invoice Quick-View Drawer */}
+      <Drawer
+        title={siView.data?.invoiceNumber || 'Supplier Invoice Details'}
+        open={siView.open}
+        onClose={() => setSiView(v => ({ ...v, open: false }))}
+        width={640}
+        footer={<div style={{ textAlign: 'right' }}><Button intent="default" onClick={() => setSiView(v => ({ ...v, open: false }))}>Close</Button></div>}
+      >
+        {siView.loading ? (
+          <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
+        ) : siView.data ? (
+          <Descriptions bordered size="small" column={2}>
+            <Descriptions.Item label="Invoice No">{siView.data.invoiceNumber}</Descriptions.Item>
+            <Descriptions.Item label="Supplier">{siView.data.supplier?.name}</Descriptions.Item>
+            <Descriptions.Item label="Invoice Date">{siView.data.invoiceDate ? dayjs(siView.data.invoiceDate).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Due Date">{siView.data.dueDate ? dayjs(siView.data.dueDate).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+            <Descriptions.Item label="Currency">{siView.data.currency}</Descriptions.Item>
+            <Descriptions.Item label="Total Amount">
+              {siView.data.currency} {Number(siView.data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+            </Descriptions.Item>
+            <Descriptions.Item label="Status">
+              <StatusBadge status={siView.data.status?.toLowerCase() as DocumentStatusType} />
+            </Descriptions.Item>
+          </Descriptions>
+        ) : null}
       </Drawer>
 
       {/* Demurrage Modal */}

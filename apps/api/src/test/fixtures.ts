@@ -471,3 +471,149 @@ export function makeAdvancePayment(overrides: Record<string, unknown> = {}) {
     ...overrides,
   };
 }
+
+// ─── Sprint 8: GST fixtures ────────────────────────────────────────────────────
+
+export const LUT_ID = 'lut-id';
+export const LC_ID = 'lc-id';
+export const BANK_STATEMENT_ID = 'bank-stmt-id';
+export const BANK_ENTRY_ID = 'bank-entry-id';
+
+export function makeLutRecord(overrides: Record<string, unknown> = {}) {
+  return {
+    id: LUT_ID,
+    tenantId: TENANT_ID,
+    arnNumber: 'AD170322001234E',
+    financialYear: '2025-26',
+    filingDate: new Date('2025-04-01'),
+    expiryDate: new Date('2026-03-31'),
+    status: 'ACTIVE',
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+export function makeBusinessProfile(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'profile-id',
+    tenantId: TENANT_ID,
+    gstin: '27AABCU9603R1ZX',
+    iecNumber: '0512345678',
+    iecStatus: 'ACTIVE',
+    iecLastConfirmedAt: new Date('2025-04-01'),
+    adCode: '0240422',
+    adBankName: 'HDFC Bank',
+    adCodePorts: 'INMAA,INNSA',
+    ...overrides,
+  };
+}
+
+// ─── Sprint 8: LC fixtures ─────────────────────────────────────────────────────
+
+export function makeLetterOfCredit(overrides: Record<string, unknown> = {}) {
+  return {
+    id: LC_ID,
+    tenantId: TENANT_ID,
+    lcNumber: 'LC/2025-26/001',
+    lcType: 'SIGHT',
+    status: 'DRAFT',
+    buyerPartyId: PARTY_ID,
+    issuingBank: 'HSBC Hong Kong',
+    advisingBank: 'HDFC Bank India',
+    lcAmount: 50000,
+    currency: 'USD',
+    expiryDate: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000),
+    latestShipmentDate: new Date(Date.now() + 60 * 24 * 60 * 60 * 1000),
+    presentationPeriod: 21,
+    portOfLoading: 'INMAA',
+    portOfDischarge: 'USLAX',
+    goodsDescription: 'Cotton Garments',
+    specialConditions: null,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    buyer: makeParty(),
+    requiredDocs: [],
+    discrepancies: [],
+    ...overrides,
+  };
+}
+
+export function makeLcDocument(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'lc-doc-id',
+    lcId: LC_ID,
+    documentType: 'COMMERCIAL_INVOICE',
+    copies: 3,
+    originals: 1,
+    instructions: null,
+    status: 'NOT_STARTED',
+    ...overrides,
+  };
+}
+
+export function makeLcDiscrepancy(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 'lc-disc-id',
+    lcId: LC_ID,
+    description: 'Partial shipment not permitted',
+    severity: 'BLOCKING',
+    status: 'OPEN',
+    loggedBy: USER_ID,
+    resolvedBy: null,
+    resolvedAt: null,
+    waiveReason: null,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    ...overrides,
+  };
+}
+
+// ─── Sprint 8: Bank reconciliation fixtures ────────────────────────────────────
+
+export function makeBankStatement(overrides: Record<string, unknown> = {}) {
+  return {
+    id: BANK_STATEMENT_ID,
+    tenantId: TENANT_ID,
+    bankAccountId: null,
+    bankName: 'HDFC Bank',
+    accountNumber: '50200012345678',
+    statementDate: new Date(),
+    currency: 'INR',
+    openingBalance: 500000,
+    closingBalance: 750000,
+    totalCredits: 400000,
+    totalDebits: 150000,
+    entryCount: 10,
+    unreconciledCount: 5,
+    notes: null,
+    createdBy: USER_ID,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    entries: [],
+    ...overrides,
+  };
+}
+
+export function makeBankEntry(overrides: Record<string, unknown> = {}) {
+  return {
+    id: BANK_ENTRY_ID,
+    statementId: BANK_STATEMENT_ID,
+    entryDate: new Date(),
+    description: 'Inward remittance UTR123456',
+    reference: 'UTR123456',
+    entryType: 'CREDIT',
+    amount: 417500,
+    reconciliationStatus: 'UNRECONCILED',
+    exportPaymentId: null,
+    importPaymentId: null,
+    advancePaymentId: null,
+    matchedAt: null,
+    matchedBy: null,
+    ...overrides,
+  };
+}
