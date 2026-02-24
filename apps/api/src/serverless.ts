@@ -1,8 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ExpressAdapter } from '@nestjs/platform-express';
-import * as express from 'express';
-import type { Express } from 'express';
+import express, { type Express } from 'express';
 import type { IncomingMessage, ServerResponse } from 'http';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -36,7 +35,7 @@ async function bootstrap(): Promise<Express> {
 
   await app.init();
   cachedServer = expressApp;
-  return cachedServer;
+  return expressApp;
 }
 
 export default async function handler(req: IncomingMessage, res: ServerResponse) {
