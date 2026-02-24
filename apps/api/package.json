@@ -10,7 +10,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "vercel-build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && nest build"
+    "vercel-build": "prisma generate --schema=../../packages/db/prisma/schema.prisma && pnpm --filter @exim/pdf build && nest build"
   },
   "dependencies": {
     "@exim/db": "workspace:*",
