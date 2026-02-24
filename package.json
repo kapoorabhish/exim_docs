@@ -6,7 +6,8 @@
     "build": "turbo build",
     "lint": "turbo lint",
     "storybook": "turbo storybook",
-    "build-storybook": "turbo build-storybook"
+    "build-storybook": "turbo build-storybook",
+    "vercel-build": "pnpm --filter api vercel-build"
   },
   "devDependencies": {
     "turbo": "^2.4.0",
