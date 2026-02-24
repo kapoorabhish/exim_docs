@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "regions": ["sin1"],
+  "builds": [
+    {
+      "src": "apps/api/dist/serverless.js",
+      "use": "@vercel/node",
+      "config": {
+        "includeFiles": [
+          "apps/api/dist/**",
+          "node_modules/.prisma/**",
+          "node_modules/@prisma/client/**",
+          "apps/api/node_modules/.prisma/**",
+          "apps/api/node_modules/@prisma/client/**"
+        ]
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/apps/api/dist/serverless.js"
+    }
+  ]
+}
