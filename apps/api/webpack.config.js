@@ -10,6 +10,7 @@ module.exports = (options, webpack) => {
     externals: [],
     output: {
       ...options.output,
+      filename: '[name].js',
       libraryTarget: 'commonjs2',
     },
   };
