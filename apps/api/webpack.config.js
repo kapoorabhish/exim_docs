@@ -13,6 +13,10 @@ module.exports = (options, webpack) => {
         if (request.startsWith('@exim/')) {
           return callback();
         }
+        // Bundle @react-pdf/* — ESM-only, cannot be require()d at runtime
+        if (request.startsWith('@react-pdf/') || request === 'react-pdf') {
+          return callback();
+        }
         // Externalize all other node_modules — available at runtime
         if (!request.startsWith('.') && !path.isAbsolute(request)) {
           return callback(null, 'commonjs ' + request);
