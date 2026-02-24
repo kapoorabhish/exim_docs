@@ -117,6 +117,9 @@ importers:
       jest-mock-extended:
         specifier: ^4.0.0
         version: 4.0.0(@jest/globals@30.2.0)(jest@30.2.0(@types/node@20.19.33)(esbuild-register@3.6.0(esbuild@0.27.3)))(typescript@5.9.3)
+      prisma:
+        specifier: ^6.5.0
+        version: 6.19.2(typescript@5.9.3)
       ts-jest:
         specifier: ^29.4.6
         version: 29.4.6(@babel/core@7.29.0)(@jest/transform@30.2.0)(@jest/types@30.2.0)(babel-jest@30.2.0(@babel/core@7.29.0))(esbuild@0.27.3)(jest-util@30.2.0)(jest@30.2.0(@types/node@20.19.33)(esbuild-register@3.6.0(esbuild@0.27.3)))(typescript@5.9.3)
