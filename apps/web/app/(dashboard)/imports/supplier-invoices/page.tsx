@@ -6,10 +6,11 @@ import {
   DatePicker, InputNumber, Popconfirm, Descriptions, Tag, Divider, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, DeleteOutlined, EditOutlined, MoreOutlined, FileTextOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, EditOutlined, MoreOutlined, FileTextOutlined, FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { PageHeader, Button, StatusBadge, EmptyState } from '@exim/ui';
 import type { DocumentStatusType } from '@exim/shared';
+import PdfViewerModal from '../../../../components/pdf-viewer-modal';
 import api from '../../../../lib/api';
 
 interface SiLineItem { description: string; hsCode?: string; quantity: number; uomCode: string; unitPrice: number; totalPrice: number; }
@@ -59,6 +60,7 @@ export default function SupplierInvoicesPage() {
   const [docSetLoading, setDocSetLoading] = useState(false);
   const [poView, setPoView] = useState<{ open: boolean; loading: boolean; data: any }>({ open: false, loading: false, data: null });
   const [childDoc, setChildDoc] = useState<{ open: boolean; type: string; title: string; loading: boolean; data: any } | null>(null);
+  const [pdfViewer, setPdfViewer] = useState<{ open: boolean; pdfUrl: string | null; title: string; filename: string }>({ open: false, pdfUrl: null, title: '', filename: '' });
   const [form] = Form.useForm();
 
   const fetchParties = useCallback(async () => {
@@ -231,6 +233,18 @@ export default function SupplierInvoicesPage() {
             </Popconfirm>
           )}
           <Button size="small" intent="default" icon={<FileTextOutlined />} aria-label="Document set" onClick={() => openDocSet(inv)} />
+          <Button
+            size="small"
+            intent="default"
+            icon={<FilePdfOutlined />}
+            aria-label="View PDF"
+            onClick={() => setPdfViewer({
+              open: true,
+              pdfUrl: `/pdf/supplier-invoices/${inv.id}`,
+              title: inv.invoiceNumber,
+              filename: `${inv.invoiceNumber}.pdf`,
+            })}
+          />
           {inv.status === 'DRAFT' && (
             <Popconfirm title="Delete this supplier invoice?" onConfirm={() => doAction('delete', inv)} okText="Delete" okButtonProps={{ danger: true }}>
               <Button size="small" danger icon={<DeleteOutlined />} aria-label="Delete" />
@@ -598,6 +612,14 @@ export default function SupplierInvoicesPage() {
           </Descriptions>
         ) : null}
       </Drawer>
+
+      <PdfViewerModal
+        open={pdfViewer.open}
+        title={pdfViewer.title}
+        pdfUrl={pdfViewer.pdfUrl}
+        filename={pdfViewer.filename}
+        onClose={() => setPdfViewer(v => ({ ...v, open: false }))}
+      />
     </>
   );
 }

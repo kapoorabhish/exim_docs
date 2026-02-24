@@ -6,10 +6,11 @@ import {
   DatePicker, InputNumber, Popconfirm, Modal, Descriptions, Spin,
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, DeleteOutlined, ClockCircleOutlined } from '@ant-design/icons';
+import { PlusOutlined, DeleteOutlined, ClockCircleOutlined, FilePdfOutlined } from '@ant-design/icons';
 import dayjs from 'dayjs';
 import { PageHeader, Button, StatusBadge, EmptyState } from '@exim/ui';
 import type { DocumentStatusType } from '@exim/shared';
+import PdfViewerModal from '../../../../components/pdf-viewer-modal';
 import api from '../../../../lib/api';
 
 interface ImportBl {
@@ -62,6 +63,7 @@ export default function ImportBlPage() {
   const [form] = Form.useForm();
   const [demurrageModal, setDemurrageModal] = useState<{ open: boolean; bl?: ImportBl; info?: DemurrageInfo }>({ open: false });
   const [siView, setSiView] = useState<{ open: boolean; loading: boolean; data: any }>({ open: false, loading: false, data: null });
+  const [pdfViewer, setPdfViewer] = useState<{ open: boolean; pdfUrl: string | null; title: string; filename: string }>({ open: false, pdfUrl: null, title: '', filename: '' });
 
   const fetchInvoices = useCallback(async () => {
     try {
@@ -343,7 +345,25 @@ export default function ImportBlPage() {
         open={siView.open}
         onClose={() => setSiView(v => ({ ...v, open: false }))}
         width={640}
-        footer={<div style={{ textAlign: 'right' }}><Button intent="default" onClick={() => setSiView(v => ({ ...v, open: false }))}>Close</Button></div>}
+        footer={
+          <Space style={{ float: 'right' }}>
+            {siView.data && (
+              <Button
+                intent="default"
+                icon={<FilePdfOutlined />}
+                onClick={() => setPdfViewer({
+                  open: true,
+                  pdfUrl: `/pdf/supplier-invoices/${siView.data.id}`,
+                  title: siView.data.invoiceNumber,
+                  filename: `${siView.data.invoiceNumber}.pdf`,
+                })}
+              >
+                View PDF
+              </Button>
+            )}
+            <Button intent="default" onClick={() => setSiView(v => ({ ...v, open: false }))}>Close</Button>
+          </Space>
+        }
       >
         {siView.loading ? (
           <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
@@ -397,6 +417,15 @@ export default function ImportBlPage() {
           </div>
         )}
       </Modal>
+
+      <PdfViewerModal
+        open={pdfViewer.open}
+        title={pdfViewer.title}
+        pdfUrl={pdfViewer.pdfUrl}
+        filename={pdfViewer.filename}
+        onClose={() => setPdfViewer(v => ({ ...v, open: false }))}
+        zIndex={1100}
+      />
     </>
   );
 }
