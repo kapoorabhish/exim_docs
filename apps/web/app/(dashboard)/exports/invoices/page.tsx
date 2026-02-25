@@ -12,7 +12,8 @@ import {
   FolderViewOutlined, BankOutlined, EyeOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { PageHeader, Button } from '@exim/ui';
+import { PageHeader, Button, StatusBadge } from '@exim/ui';
+import type { DocumentStatusType } from '@exim/shared';
 import PdfViewerModal from '../../../../components/pdf-viewer-modal';
 import api from '../../../../lib/api';
 
@@ -59,6 +60,7 @@ export default function InvoicesPage() {
   const [docSetOpen, setDocSetOpen] = useState(false);
   const [docSetLoading, setDocSetLoading] = useState(false);
   const [docSet, setDocSet] = useState<any>(null);
+  const [childDoc, setChildDoc] = useState<{ open: boolean; type: string; title: string; loading: boolean; data: any } | null>(null);
 
   // ─── BRC drawer ─────────────────────────────────────────────────────────────
   const [brcOpen, setBrcOpen] = useState(false);
@@ -174,6 +176,24 @@ export default function InvoicesPage() {
 
   const viewPdf = (id: string, invoiceNumber: string) => {
     setPdfViewer({ open: true, pdfUrl: `/pdf/invoices/${id}`, title: invoiceNumber, filename: `${invoiceNumber}.pdf` });
+  };
+
+  const openDocChild = async (type: string, id: string, title: string) => {
+    setChildDoc({ open: true, type, title, loading: true, data: null });
+    const endpointMap: Record<string, string> = {
+      PI: '/proforma-invoices',
+      PL: '/packing-lists',
+      SB: '/shipping-bills',
+    };
+    const endpoint = endpointMap[type];
+    if (!endpoint) return;
+    try {
+      const { data } = await api.get(`${endpoint}/${id}`);
+      setChildDoc(v => v ? { ...v, loading: false, data: data.data || data } : null);
+    } catch {
+      message.error('Failed to load details');
+      setChildDoc(v => v ? { ...v, open: false, loading: false } : null);
+    }
   };
 
   const openDocSet = async (id: string) => {
@@ -489,18 +509,43 @@ export default function InvoicesPage() {
         title="Document Set"
         open={docSetOpen}
         onClose={() => setDocSetOpen(false)}
-        width={560}
+        width={640}
+        push={{ distance: 180 }}
       >
         {docSetLoading ? (
           <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
         ) : docSet ? (
           <Space direction="vertical" style={{ width: '100%' }} size={16}>
             {docSet.proformaInvoice && (
-              <Card size="small" title="Proforma Invoice">
+              <Card
+                size="small"
+                title={
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Proforma Invoice</span>
+                    <Space size={4}>
+                      <Button type="link" size="small" style={{ padding: 0 }} icon={<FilePdfOutlined />}
+                        onClick={() => setPdfViewer({
+                          open: true,
+                          pdfUrl: `/pdf/proforma-invoices/${docSet.proformaInvoice.id}`,
+                          title: docSet.proformaInvoice.piNumber,
+                          filename: `${docSet.proformaInvoice.piNumber}.pdf`,
+                        })}>
+                        PDF
+                      </Button>
+                      <Button type="link" size="small" style={{ padding: 0 }}
+                        onClick={() => openDocChild('PI', docSet.proformaInvoice.id, `PI: ${docSet.proformaInvoice.piNumber}`)}>
+                        View ›
+                      </Button>
+                    </Space>
+                  </div>
+                }
+              >
                 <Descriptions size="small" column={2}>
                   <Descriptions.Item label="PI Number">{docSet.proformaInvoice.piNumber}</Descriptions.Item>
                   <Descriptions.Item label="Version">v{docSet.proformaInvoice.version}</Descriptions.Item>
-                  <Descriptions.Item label="Status"><Tag>{docSet.proformaInvoice.status}</Tag></Descriptions.Item>
+                  <Descriptions.Item label="Status">
+                    <StatusBadge status={docSet.proformaInvoice.status?.toLowerCase() as DocumentStatusType} />
+                  </Descriptions.Item>
                   <Descriptions.Item label="Date">{dayjs(docSet.proformaInvoice.date).format('DD MMM YYYY')}</Descriptions.Item>
                 </Descriptions>
               </Card>
@@ -508,24 +553,55 @@ export default function InvoicesPage() {
             {docSet.packingLists?.length > 0 && (
               <Card size="small" title={`Packing Lists (${docSet.packingLists.length})`}>
                 {docSet.packingLists.map((pl: any) => (
-                  <Descriptions key={pl.id} size="small" column={2} style={{ marginBottom: 8 }}>
-                    <Descriptions.Item label="PL Number">{pl.plNumber}</Descriptions.Item>
-                    <Descriptions.Item label="Status"><Tag>{pl.status}</Tag></Descriptions.Item>
-                    <Descriptions.Item label="Packages">{pl.totalPackages}</Descriptions.Item>
-                    <Descriptions.Item label="Gross Wt">{Number(pl.totalGrossWeight).toFixed(3)} kg</Descriptions.Item>
-                  </Descriptions>
+                  <div key={pl.id} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 500, fontSize: 13 }}>{pl.plNumber}</span>
+                      <Space size={4}>
+                        <Button type="link" size="small" style={{ padding: 0 }} icon={<FilePdfOutlined />}
+                          onClick={() => setPdfViewer({
+                            open: true,
+                            pdfUrl: `/pdf/packing-lists/${pl.id}`,
+                            title: pl.plNumber,
+                            filename: `${pl.plNumber}.pdf`,
+                          })}>
+                          PDF
+                        </Button>
+                        <Button type="link" size="small" style={{ padding: 0 }}
+                          onClick={() => openDocChild('PL', pl.id, `PL: ${pl.plNumber}`)}>
+                          View ›
+                        </Button>
+                      </Space>
+                    </div>
+                    <Descriptions size="small" column={2}>
+                      <Descriptions.Item label="Status">
+                        <StatusBadge status={pl.status?.toLowerCase() as DocumentStatusType} />
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Packages">{pl.totalPackages ?? '—'}</Descriptions.Item>
+                      <Descriptions.Item label="Gross Wt">{pl.totalGrossWeight ? `${Number(pl.totalGrossWeight).toFixed(3)} kg` : '—'}</Descriptions.Item>
+                    </Descriptions>
+                  </div>
                 ))}
               </Card>
             )}
             {docSet.shippingBills?.length > 0 && (
               <Card size="small" title={`Shipping Bills (${docSet.shippingBills.length})`}>
                 {docSet.shippingBills.map((sb: any) => (
-                  <Descriptions key={sb.id} size="small" column={2} style={{ marginBottom: 8 }}>
-                    <Descriptions.Item label="SB Number">{sb.sbNumber || '—'}</Descriptions.Item>
-                    <Descriptions.Item label="Status"><Tag>{sb.status}</Tag></Descriptions.Item>
-                    <Descriptions.Item label="Port">{sb.portCode}</Descriptions.Item>
-                    <Descriptions.Item label="FOB (INR)">₹{Number(sb.totalFobInr).toLocaleString('en-IN')}</Descriptions.Item>
-                  </Descriptions>
+                  <div key={sb.id} style={{ marginBottom: 12 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                      <span style={{ fontWeight: 500, fontSize: 13 }}>{sb.sbNumber || 'Pending'}</span>
+                      <Button type="link" size="small" style={{ padding: 0 }}
+                        onClick={() => openDocChild('SB', sb.id, `SB: ${sb.sbNumber || sb.id.slice(0, 8)}`)}>
+                        View ›
+                      </Button>
+                    </div>
+                    <Descriptions size="small" column={2}>
+                      <Descriptions.Item label="Status">
+                        <StatusBadge status={sb.status?.toLowerCase() as DocumentStatusType} />
+                      </Descriptions.Item>
+                      <Descriptions.Item label="Port">{sb.portCode}</Descriptions.Item>
+                      <Descriptions.Item label="FOB (INR)">₹{Number(sb.totalFobInr).toLocaleString('en-IN')}</Descriptions.Item>
+                    </Descriptions>
+                  </div>
                 ))}
               </Card>
             )}
@@ -534,7 +610,9 @@ export default function InvoicesPage() {
                 {docSet.bankRealizationCertificates.map((brc: any) => (
                   <Descriptions key={brc.id} size="small" column={2} style={{ marginBottom: 8 }}>
                     <Descriptions.Item label="BRC No.">{brc.brcNumber || 'Pending'}</Descriptions.Item>
-                    <Descriptions.Item label="Status"><Tag color={brc.status === 'RECEIVED' ? 'green' : 'default'}>{brc.status}</Tag></Descriptions.Item>
+                    <Descriptions.Item label="Status">
+                      <StatusBadge status={brc.status?.toLowerCase() as DocumentStatusType} />
+                    </Descriptions.Item>
                     <Descriptions.Item label="Amount">{brc.foreignCurrency} {Number(brc.foreignAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}</Descriptions.Item>
                     <Descriptions.Item label="INR">₹{Number(brc.inrAmount).toLocaleString('en-IN')}</Descriptions.Item>
                   </Descriptions>
@@ -543,6 +621,84 @@ export default function InvoicesPage() {
             )}
           </Space>
         ) : null}
+
+        {/* Nested child detail drawer */}
+        <Drawer
+          title={childDoc?.title || ''}
+          open={!!childDoc?.open}
+          onClose={() => setChildDoc(v => v ? { ...v, open: false } : null)}
+          width={640}
+          footer={
+            <Space style={{ justifyContent: 'flex-end', display: 'flex' }}>
+              {childDoc?.data && (childDoc.type === 'PI' || childDoc.type === 'PL') && (
+                <Button
+                  intent="default"
+                  icon={<FilePdfOutlined />}
+                  onClick={() => setPdfViewer({
+                    open: true,
+                    pdfUrl: childDoc.type === 'PI'
+                      ? `/pdf/proforma-invoices/${childDoc.data.id}`
+                      : `/pdf/packing-lists/${childDoc.data.id}`,
+                    title: childDoc.type === 'PI' ? childDoc.data.piNumber : childDoc.data.plNumber,
+                    filename: childDoc.type === 'PI'
+                      ? `${childDoc.data.piNumber}.pdf`
+                      : `${childDoc.data.plNumber}.pdf`,
+                  })}
+                >
+                  Preview PDF
+                </Button>
+              )}
+              <Button intent="default" onClick={() => setChildDoc(v => v ? { ...v, open: false } : null)}>Close</Button>
+            </Space>
+          }
+        >
+          {childDoc?.loading ? (
+            <div style={{ textAlign: 'center', padding: 48 }}><Spin /></div>
+          ) : childDoc?.data ? (
+            <>
+              {childDoc.type === 'PI' && (
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="PI Number">{childDoc.data.piNumber}</Descriptions.Item>
+                  <Descriptions.Item label="Version">v{childDoc.data.version}</Descriptions.Item>
+                  <Descriptions.Item label="Date">{childDoc.data.date ? dayjs(childDoc.data.date).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Status">
+                    <StatusBadge status={childDoc.data.status?.toLowerCase() as DocumentStatusType} />
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Currency">{childDoc.data.currency}</Descriptions.Item>
+                  <Descriptions.Item label="Total">
+                    {childDoc.data.currency} {Number(childDoc.data.totalAmount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  </Descriptions.Item>
+                </Descriptions>
+              )}
+              {childDoc.type === 'PL' && (
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="PL Number">{childDoc.data.plNumber}</Descriptions.Item>
+                  <Descriptions.Item label="Date">{childDoc.data.date ? dayjs(childDoc.data.date).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Status">
+                    <StatusBadge status={childDoc.data.status?.toLowerCase() as DocumentStatusType} />
+                  </Descriptions.Item>
+                  <Descriptions.Item label="Packages">{childDoc.data.totalPackages ?? '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Net Wt">{childDoc.data.totalNetWeight ? `${Number(childDoc.data.totalNetWeight).toFixed(3)} kg` : '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Gross Wt">{childDoc.data.totalGrossWeight ? `${Number(childDoc.data.totalGrossWeight).toFixed(3)} kg` : '—'}</Descriptions.Item>
+                  <Descriptions.Item label="CBM">{childDoc.data.totalCbm ? Number(childDoc.data.totalCbm).toFixed(4) : '—'}</Descriptions.Item>
+                </Descriptions>
+              )}
+              {childDoc.type === 'SB' && (
+                <Descriptions bordered size="small" column={2}>
+                  <Descriptions.Item label="SB Number">{childDoc.data.sbNumber || '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Date">{childDoc.data.date ? dayjs(childDoc.data.date).format('DD MMM YYYY') : '—'}</Descriptions.Item>
+                  <Descriptions.Item label="Type">{childDoc.data.sbType}</Descriptions.Item>
+                  <Descriptions.Item label="Port">{childDoc.data.portCode}</Descriptions.Item>
+                  <Descriptions.Item label="Mode">{childDoc.data.modeOfShipment}</Descriptions.Item>
+                  <Descriptions.Item label="FOB (INR)">₹{Number(childDoc.data.totalFobInr).toLocaleString('en-IN')}</Descriptions.Item>
+                  <Descriptions.Item label="Status">
+                    <StatusBadge status={childDoc.data.status?.toLowerCase() as DocumentStatusType} />
+                  </Descriptions.Item>
+                </Descriptions>
+              )}
+            </>
+          ) : null}
+        </Drawer>
       </Drawer>
 
       {/* ── Record BRC Drawer ── */}
@@ -595,6 +751,7 @@ export default function InvoicesPage() {
         title={pdfViewer.title}
         pdfUrl={pdfViewer.pdfUrl}
         filename={pdfViewer.filename}
+        zIndex={1200}
         onClose={() => setPdfViewer(v => ({ ...v, open: false }))}
       />
     </>

@@ -7,4 +7,7 @@ export type { CommercialInvoicePdfData, CiLineItem } from './templates/Commercia
 export { PackingListPdf } from './templates/PackingListPdf';
 export type { PackingListPdfData, PackingItem } from './templates/PackingListPdf';
 
+export { SupplierInvoicePdf } from './templates/SupplierInvoicePdf';
+export type { SupplierInvoicePdfData, SiLineItemPdf } from './templates/SupplierInvoicePdf';
+
 export { amountToWords } from './utils/amountToWords';

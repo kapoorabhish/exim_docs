@@ -12,6 +12,8 @@ import { ImportsModule } from './modules/imports/imports.module';
 import { PaymentsModule } from './modules/payments/payments.module';
 import { AdminModule } from './modules/admin/admin.module';
 import { PdfModule } from './modules/pdf/pdf.module';
+import { GstModule } from './modules/gst/gst.module';
+import { LcModule } from './modules/lc/lc.module';
 
 @Module({
   imports: [
@@ -27,6 +29,8 @@ import { PdfModule } from './modules/pdf/pdf.module';
     PaymentsModule,
     AdminModule,
     PdfModule,
+    GstModule,
+    LcModule,
   ],
   controllers: [AppController],
 })

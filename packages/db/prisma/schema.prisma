@@ -1,5 +1,6 @@
 generator client {
-  provider = "prisma-client-js"
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x"]
 }
 
 datasource db {
@@ -113,6 +114,9 @@ model Tenant {
   exportPayments              ExportPayment[]
   importPayments              ImportPayment[]
   advancePayments             AdvancePayment[]
+  lutRecords                  LutRecord[]
+  lettersOfCredit             LetterOfCredit[]
+  bankStatements              BankStatement[]
 
   @@map("tenants")
 }
@@ -136,10 +140,14 @@ model BusinessProfile {
   tan                  String?   // Tax Deduction Account Number — 10 chars (e.g. MUMA12345A), for TDS
   cin                  String?   // Corporate Identity Number — 21 chars (e.g. L12345MH2000PLC123456)
 
+  // IEC Status tracking (Sprint 8)
+  iecStatus            IecStatus @default(ACTIVE)
+
   // AD Code — Authorized Dealer Code (14-digit, issued by exporter's bank)
   // Mandatory for Shipping Bill filing on ICEGATE and BRC linkage
   adCode               String?   // 14-digit Authorized Dealer Code
   adBankName           String?   // Bank that issued the AD code
+  adCodePorts          String?   // comma-separated port codes where AD code is registered
 
   // Signatory details
   logoUrl              String?
@@ -344,6 +352,7 @@ model Party {
   exportPaymentsReceived  ExportPayment[]         @relation("ExportPaymentBuyer")
   importPaymentsMade      ImportPayment[]         @relation("ImportPaymentSupplier")
   advancePayments         AdvancePayment[]        @relation("AdvancePaymentParty")
+  lettersOfCredit         LetterOfCredit[]        @relation("LcBuyer")
 
   @@index([tenantId, name])
   @@index([tenantId, type])
@@ -536,7 +545,7 @@ model TermsTemplate {
   @@map("terms_templates")
 }
 
-// ─── Document Sequence ────────────────────────────────────
+// ─── Document Sequence ─────────────────��──────────────────
 
 model DocumentSequence {
   id           String   @id @default(cuid())
@@ -640,6 +649,12 @@ model CommercialInvoice {
   totalAmount         Decimal       @db.Decimal(15, 2) @default(0)
   termsContent        String?
   notes               String?
+  // GST & E-Invoice fields (Sprint 8)
+  gstTreatment        GstTreatment  @default(LUT)
+  gstr1Filed          Boolean       @default(false)
+  gstr1Month          String?       // "2026-01" format
+  irn                 String?       // e-invoice IRN (64 hex chars)
+  qrCode              String?       // base64 QR code for e-invoice
   createdBy           String
   createdAt           DateTime      @default(now())
   updatedAt           DateTime      @updatedAt
@@ -1059,6 +1074,83 @@ enum ImportDocumentType {
   OTHER
 }
 
+// ─── Sprint 8: GST & Compliance ──────────────────────────
+
+enum GstTreatment {
+  LUT
+  WITH_IGST
+}
+
+enum LutStatus {
+  APPLIED
+  ACTIVE
+  EXPIRING
+  EXPIRED
+}
+
+enum IgstCreditStatus {
+  UNCLAIMED
+  CLAIMED
+}
+
+enum IecStatus {
+  ACTIVE
+  UPDATE_DUE
+  DEACTIVATED
+}
+
+// ─── Sprint 8: Letter of Credit ──────────────────────────
+
+enum LcType {
+  SIGHT
+  USANCE_30
+  USANCE_60
+  USANCE_90
+  USANCE_120
+}
+
+enum LcStatus {
+  DRAFT
+  ACTIVE
+  SUBMITTED
+  UNDER_REVIEW
+  ACCEPTED
+  PAYMENT_RELEASED
+  CLOSED
+  EXPIRED
+}
+
+enum LcDocumentStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  READY
+}
+
+enum LcDiscrepancyStatus {
+  OPEN
+  RESOLVED
+  WAIVED
+}
+
+enum LcDiscrepancySeverity {
+  BLOCKING
+  NON_BLOCKING
+}
+
+// ─── Sprint 8: Bank Reconciliation ───────────────────────
+
+enum BankEntryType {
+  CREDIT
+  DEBIT
+}
+
+enum ReconciliationStatus {
+  UNRECONCILED
+  MATCHED
+  MANUALLY_MATCHED
+  EXCLUDED
+}
+
 // ─── Supplier Purchase Order ──────────────────────────────
 
 model SupplierPurchaseOrder {
@@ -1173,6 +1265,9 @@ model BillOfEntry {
   outOfChargeDate        DateTime?
   dutyPaidDate           DateTime?
   notes                  String?
+  // IGST Credit tracking (Sprint 8)
+  igstCreditStatus       IgstCreditStatus @default(UNCLAIMED)
+  gstr3bMonth            String?          // "2026-01" format when claimed
   createdBy              String
   createdAt              DateTime  @default(now())
   updatedAt              DateTime  @updatedAt
@@ -1407,3 +1502,142 @@ model AdvancePaymentAdjustment {
 // ─── CommercialInvoice payment allocation back-relation ──
 // (relation field added to CommercialInvoice inline in model above)
 
+// ─── Sprint 8: LUT Record ────────────────────────────────
+
+model LutRecord {
+  id            String    @id @default(cuid())
+  tenantId      String
+  arnNumber     String    // GST ARN
+  filingDate    DateTime
+  financialYear String    // "2025-26"
+  expiryDate    DateTime  // filingDate + 1 year
+  status        LutStatus @default(APPLIED)
+  documentUrl   String?
+  notes         String?
+  createdBy     String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, financialYear])
+  @@index([tenantId, status])
+  @@map("lut_records")
+}
+
+// ─── Sprint 8: Letter of Credit ──────────────────────────
+
+model LetterOfCredit {
+  id                     String    @id @default(cuid())
+  tenantId               String
+  lcNumber               String
+  lcDate                 DateTime
+  lcType                 LcType    @default(SIGHT)
+  isIrrevocable          Boolean   @default(true)
+  isConfirmed            Boolean   @default(false)
+  issuingBank            String
+  advisingBank           String?
+  buyerPartyId           String
+  currency               String
+  amount                 Decimal   @db.Decimal(18, 2)
+  expiryDate             DateTime
+  latestShipmentDate     DateTime?
+  portOfLoading          String?
+  portOfDischarge        String?
+  partialShipmentAllowed Boolean   @default(false)
+  transhipmentAllowed    Boolean   @default(false)
+  status                 LcStatus  @default(DRAFT)
+  proformaInvoiceId      String?
+  submissionDate         DateTime?
+  bankReferenceNumber    String?
+  documentUrl            String?
+  notes                  String?
+  createdBy              String
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id])
+  buyer         Party                @relation("LcBuyer", fields: [buyerPartyId], references: [id])
+  requiredDocs  LcRequiredDocument[]
+  discrepancies LcDiscrepancy[]
+
+  @@unique([tenantId, lcNumber])
+  @@index([tenantId, status])
+  @@map("letters_of_credit")
+}
+
+model LcRequiredDocument {
+  id                  String           @id @default(cuid())
+  lcId                String
+  documentType        String
+  originalsRequired   Int              @default(1)
+  copiesRequired      Int              @default(0)
+  specialInstructions String?
+  status              LcDocumentStatus @default(NOT_STARTED)
+
+  lc LetterOfCredit @relation(fields: [lcId], references: [id], onDelete: Cascade)
+
+  @@map("lc_required_documents")
+}
+
+model LcDiscrepancy {
+  id               String                @id @default(cuid())
+  lcId             String
+  description      String
+  severity         LcDiscrepancySeverity @default(BLOCKING)
+  documentAffected String?
+  resolution       String?
+  bankCharges      Decimal?              @db.Decimal(12, 2)
+  status           LcDiscrepancyStatus   @default(OPEN)
+  raisedAt         DateTime              @default(now())
+  resolvedAt       DateTime?
+  createdBy        String
+
+  lc LetterOfCredit @relation(fields: [lcId], references: [id], onDelete: Cascade)
+
+  @@map("lc_discrepancies")
+}
+
+// ─── Sprint 8: Bank Statement & Reconciliation ───────────
+
+model BankStatement {
+  id             String              @id @default(cuid())
+  tenantId       String
+  bankName       String
+  accountNumber  String?
+  statementDate  DateTime
+  openingBalance Decimal             @db.Decimal(18, 2)
+  closingBalance Decimal             @db.Decimal(18, 2)
+  entryCount     Int
+  uploadedBy     String
+  createdAt      DateTime            @default(now())
+
+  tenant  Tenant               @relation(fields: [tenantId], references: [id])
+  entries BankStatementEntry[]
+
+  @@index([tenantId])
+  @@map("bank_statements")
+}
+
+model BankStatementEntry {
+  id                   String               @id @default(cuid())
+  statementId          String
+  entryDate            DateTime
+  valueDate            DateTime?
+  description          String
+  reference            String?
+  entryType            BankEntryType
+  amount               Decimal              @db.Decimal(18, 2)
+  balance              Decimal              @db.Decimal(18, 2)
+  reconciliationStatus ReconciliationStatus @default(UNRECONCILED)
+  exportPaymentId      String?
+  importPaymentId      String?
+  advancePaymentId     String?
+  matchedAt            DateTime?
+  matchedBy            String?
+
+  statement BankStatement @relation(fields: [statementId], references: [id], onDelete: Cascade)
+
+  @@index([statementId, reconciliationStatus])
+  @@map("bank_statement_entries")
+}

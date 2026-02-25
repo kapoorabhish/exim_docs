@@ -33,7 +33,7 @@ export class ShippingBillService {
           : {}),
       },
       include: {
-        invoice: { select: { invoiceNumber: true, currency: true, totalAmount: true } },
+        invoice: { select: { id: true, invoiceNumber: true, currency: true, totalAmount: true } },
         _count: { select: { lineItems: true } },
       },
       orderBy: { createdAt: 'desc' },

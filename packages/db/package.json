@@ -13,6 +13,9 @@
     "db:seed-tenant": "tsx --env-file .env prisma/seed-tenant.ts",
     "db:studio": "prisma studio"
   },
+  "prisma": {
+    "schema": "./prisma/schema.prisma"
+  },
   "dependencies": {
     "@prisma/client": "^6.5.0"
   },

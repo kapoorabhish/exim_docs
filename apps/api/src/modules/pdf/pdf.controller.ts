@@ -44,4 +44,16 @@ export class PdfController {
     res.setHeader('Content-Disposition', `attachment; filename="PL-${id}.pdf"`);
     res.end(buffer);
   }
+
+  @Get('supplier-invoices/:id')
+  async supplierInvoice(
+    @CurrentUser() user: JwtPayload,
+    @Param('id') id: string,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.service.renderSupplierInvoice(user.tenantId, id);
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="SINV-${id}.pdf"`);
+    res.end(buffer);
+  }
 }

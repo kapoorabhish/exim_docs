@@ -5,9 +5,11 @@ import {
   ProformaInvoicePdf,
   CommercialInvoicePdf,
   PackingListPdf,
+  SupplierInvoicePdf,
   type ProformaInvoicePdfData,
   type CommercialInvoicePdfData,
   type PackingListPdfData,
+  type SupplierInvoicePdfData,
 } from '@exim/pdf';
 import { PrismaService } from '../../common/prisma.service';
 
@@ -173,6 +175,56 @@ export class PdfService {
     };
 
     return renderToBuffer(React.createElement(PackingListPdf, { data }) as any);
+  }
+
+  // ─── Supplier Invoice ─────────────────────────────────────────────────────
+
+  async renderSupplierInvoice(tenantId: string, id: string): Promise<Buffer> {
+    const inv = await this.prisma.supplierInvoice.findFirst({
+      where: { id, tenantId },
+      include: {
+        supplier: true,
+        po: { select: { poNumber: true } },
+        lineItems: { orderBy: { lineNumber: 'asc' } },
+      },
+    });
+    if (!inv) throw new NotFoundException('Supplier invoice not found');
+
+    const profile = await this.prisma.businessProfile.findUnique({ where: { tenantId } });
+
+    const data: SupplierInvoicePdfData = {
+      invoiceNumber: inv.invoiceNumber,
+      invoiceDate: inv.invoiceDate.toISOString(),
+      dueDate: inv.dueDate?.toISOString(),
+      currency: inv.currency,
+      exchangeRate: Number(inv.exchangeRate),
+      totalAmount: Number(inv.totalAmount),
+      notes: inv.notes ?? undefined,
+      poNumber: inv.po?.poNumber ?? undefined,
+      lineItems: inv.lineItems.map((li) => ({
+        lineNumber: li.lineNumber,
+        description: li.description,
+        hsCode: li.hsCode ?? undefined,
+        quantity: Number(li.quantity),
+        uomCode: li.uomCode,
+        unitPrice: Number(li.unitPrice),
+        totalPrice: Number(li.totalPrice),
+      })),
+      supplier: {
+        name: inv.supplier.name,
+        address: inv.supplier.address ?? undefined,
+        city: inv.supplier.city ?? undefined,
+        country: inv.supplier.country ?? undefined,
+      },
+      company: {
+        companyName: profile?.companyName ?? 'Company',
+        address: profile?.registeredAddress ?? undefined,
+        gstin: profile?.gstin ?? undefined,
+        iec: profile?.iecNumber ?? undefined,
+      },
+    };
+
+    return renderToBuffer(React.createElement(SupplierInvoicePdf, { data }) as any);
   }
 
   // ─── Shared helpers ───────────────────────────────────────────────────────

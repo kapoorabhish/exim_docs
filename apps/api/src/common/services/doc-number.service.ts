@@ -14,6 +14,7 @@ const PREFIXES: Record<string, string> = {
   EPAY: 'EPAY',
   IPAY: 'IPAY',
   ADV:  'ADV',
+  LC:   'LC',
 };
 
 @Injectable()
