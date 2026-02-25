@@ -38,15 +38,15 @@ Browser
 4. After creation, go to **Connect** → enable **Connection pooling**
 5. Copy the **pooled** connection string (hostname contains `-pooler`)
 
-Append Prisma-required params:
+Append the required SSL param:
 
 ```
-postgresql://user:pass@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require&pgbouncer=true&connection_limit=1
+postgresql://user:pass@ep-xxx-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require
 ```
 
-- `pgbouncer=true` — disables prepared statements (required for PgBouncer)
-- `connection_limit=1` — prevents connection pool exhaustion under load
 - `sslmode=require` — enforces TLS
+- **Do NOT add** `pgbouncer=true` or `connection_limit=1` — those are serverless-only params.
+  Railway runs a persistent process; Prisma's built-in connection pool manages connections correctly.
 
 Run migrations from your local machine (one-time):
 
@@ -83,7 +83,7 @@ Go to **Variables** tab and add:
 
 | Key | Value | Notes |
 |---|---|---|
-| `DATABASE_URL` | Neon pooled connection string | Include `?pgbouncer=true&connection_limit=1&sslmode=require` |
+| `DATABASE_URL` | Neon pooled connection string | Use `?sslmode=require` only — no `pgbouncer=true` or `connection_limit=1` |
 | `JWT_SECRET` | random 64-char hex string | `openssl rand -hex 32` in terminal |
 | `JWT_ACCESS_EXPIRY` | `15m` | |
 | `JWT_REFRESH_EXPIRY` | `7d` | |
